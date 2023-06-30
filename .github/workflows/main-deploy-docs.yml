@@ -1,8 +1,8 @@
-# Docs Deployment for Foursight-CGAP
+# Docs Deployment for Foursight-smaht
 
 name: deploy-docs
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -21,5 +21,5 @@ jobs:
       - name: Docs  # XXX: DOCS_TOKEN needs to be added to secrets
         env:
           DOCS_TOKEN: ${{ secrets.DOCS_TOKEN }}
-        run: curl -X POST -d "branches=master" -d "token=$DOCS_TOKEN" https://readthedocs.org/api/v2/webhook/foursight-cgap/138355/ 
+        run: curl -X POST -d "branches=master" -d "token=$DOCS_TOKEN" https://readthedocs.org/api/v2/webhook/foursight-cgap/138355/
 

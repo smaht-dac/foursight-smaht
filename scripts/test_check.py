@@ -5,11 +5,11 @@ import json
 import argparse
 sys.path.append('..')
 import app
-from chalicelib_cgap.vars import DEV_ENV
+from chalicelib_smaht.vars import DEV_ENV
 
 # TODO
 # Not yet sure what to do about this refereneces to 'app' here.
-# We've removed app.py in (now) chalicelib_cgap (previously chalicelib),
+# We've removed app.py in (now) chalicelib_smaht (previously chalicelib),
 # and the main app.py is just for chalice local (and equivalent to 4dn-cloud-infra/app.py).
 # But even before these changes app.py did not define anything with run_check_or_action
 # or init_connection; the former is defined in foursight_core.check_utils.CheckHandler
@@ -19,7 +19,7 @@ from chalicelib_cgap.vars import DEV_ENV
 
 
 EPILOG = __doc__
-ENVS = ['cgap']
+ENVS = ['smaht']
 STAGES = ['dev', 'prod']
 
 

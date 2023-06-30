@@ -41,8 +41,8 @@ def paired_end_info_consistent(connection, **kwargs):
     '''
     check = CheckResult(connection, 'paired_end_info_consistent')
 
-    search1 = 'search/?type=FileFastq&file_format.file_format=fastq&related_files.relationship_type=paired+with&paired_end=No+value'
-    search2 = 'search/?type=FileFastq&file_format.file_format=fastq&related_files.relationship_type!=paired+with&paired_end%21=No+value'
+    search1 = 'search/?type=FileSubmitted&file_format.file_format=fastq&related_files.relationship_type=paired+with&paired_end=No+value'
+    search2 = 'search/?type=FileSubmitted&file_format.file_format=fastq&related_files.relationship_type!=paired+with&paired_end%21=No+value'
 
     results1 = ff_utils.search_metadata(search1 + '&frame=object', key=connection.ff_keys)
     results2 = ff_utils.search_metadata(search2 + '&frame=object', key=connection.ff_keys)
@@ -54,14 +54,14 @@ def paired_end_info_consistent(connection, **kwargs):
 
     if [val for val in results.values() if val]:
         check.status = 'WARN'
-        check.summary = 'Inconsistencies found in FileFastq paired end info'
+        check.summary = 'Inconsistencies found in FileSubmitted paired end info'
         check.description = ('{} files found with a "paired with" related_file but missing a paired_end number; '
                              '{} files found with a paired_end number but missing related_file info'
                              ''.format(len(results['paired with file missing paired_end number']),
                                        len(results['file with paired_end number missing "paired with" related_file'])))
     else:
         check.status = 'PASS'
-        check.summary = 'No inconsistencies in FileFastq paired end info'
+        check.summary = 'No inconsistencies in FileSubmitted paired end info'
         check.description = 'All paired end fastq files have both paired end number and "paired with" related_file'
     check.full_output = results
     check.brief_output = [item for val in results.values() for item in val]

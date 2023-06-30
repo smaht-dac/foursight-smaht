@@ -5,11 +5,11 @@ import json
 sys.path.append('..')
 import app
 from foursight_core.es_connection import ESConnection
-from chalicelib_cgap.vars import FOURSIGHT_PREFIX
+from chalicelib_smaht.vars import FOURSIGHT_PREFIX
 
 # TODO
 # Not yet sure what to do about this refereneces to 'app' here.
-# We've removed app.py in (now) chalicelib_cgap (previously chalicelib),
+# We've removed app.py in (now) chalicelib_smaht (previously chalicelib),
 # and the main app.py is just for chalice local (and equivalent to 4dn-cloud-infra/app.py).
 # But even before these changes app.py did not define anything with run_check_or_action
 # or init_connection; the former is defined in foursight_core.check_utils.CheckHandler
@@ -26,7 +26,7 @@ from chalicelib_cgap.vars import FOURSIGHT_PREFIX
 # This script reall just refactors the functionality in RunResult.delete_results
 # and calls the migration check in es_checks.py.
 
-ENVS = ['cgap']
+ENVS = ['smaht']
 STAGES = ['dev', 'prod']
 ONE_WEEK_AGO = datetime.datetime.utcnow() - datetime.timedelta(days=7)
 MIGRATE = False # set this option based on what you want to do

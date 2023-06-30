@@ -2,7 +2,7 @@ import datetime
 import json
 from unittest.mock import patch
 
-from chalicelib_cgap.checks.helpers.lifecycle_utils import (
+from chalicelib_smaht.checks.helpers.lifecycle_utils import (
     check_file_lifecycle_status, STANDARD, INFREQUENT_ACCESS, GLACIER, DEEP_ARCHIVE, DELETED
 )
 
@@ -39,7 +39,7 @@ class TestLifecycleChecks:
         return datetime.datetime(2022, 5, 24)
 
 
-    @patch('chalicelib_cgap.checks.helpers.lifecycle_utils.get_datetime_utcnow')
+    @patch('chalicelib_smaht.checks.helpers.lifecycle_utils.get_datetime_utcnow')
     @patch('dcicutils.ff_utils.get_metadata')
     @patch('dcicutils.ff_utils.search_metadata')
     def test_check_file_lifecycle_status(self, mock_search_metadata, mock_get_metadata, mock_datetime_utcnow):

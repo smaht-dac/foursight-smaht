@@ -16,7 +16,7 @@ def ecs_status(connection, **kwargs):
     client = ECSUtils()
     cluster_arns = client.list_ecs_clusters()
     for cluster_arn in cluster_arns:
-        if 'cgap' in cluster_arn:
+        if 'smaht' in cluster_arn:
             cluster_services = client.list_ecs_services(cluster_name=cluster_arn)
             full_output['ECSMeta']['clusters'][cluster_arn] = {
                 'services': cluster_services
@@ -35,7 +35,7 @@ def ecs_status(connection, **kwargs):
 def update_ecs_application_versions(connection, **kwargs):
     """ This check is intended to be run AFTER the user has finished pushing
         the relevant images to ECR. Triggers an update on all services for
-        the CGAP cluster. If no cluster_name is passed, Foursight will infer
+        the smaht cluster. If no cluster_name is passed, Foursight will infer
         one if there is only a single option - otherwise error is raised.
 
         Note that this check just kicks the process - it does not block until
@@ -46,17 +46,17 @@ def update_ecs_application_versions(connection, **kwargs):
     cluster_name = kwargs.get('cluster_name')
     cluster_arns = client.list_ecs_clusters()
     if not cluster_name:
-        cgap_candidate = list(filter(lambda arn: 'cgap' in arn.lower(), cluster_arns))
-        if not cgap_candidate:
+        smaht_candidate = list(filter(lambda arn: 'smaht' in arn.lower(), cluster_arns))
+        if not smaht_candidate:
             check.status = 'FAIL'
             check.summary = 'No clusters could be resolved from %s' % cluster_arns
-        elif len(cgap_candidate) > 1:
+        elif len(smaht_candidate) > 1:
             check.status = 'FAIL'
-            check.summary = 'Ambiguous cluster setup (not proceeding): %s' % cgap_candidate
+            check.summary = 'Ambiguous cluster setup (not proceeding): %s' % smaht_candidate
         else:
-            client.update_all_services(cluster_name=cgap_candidate[0])
+            client.update_all_services(cluster_name=smaht_candidate[0])
             check.status = 'PASS'
-            check.summary = 'Triggered cluster update for %s - updating all services.' % cgap_candidate[0]
+            check.summary = 'Triggered cluster update for %s - updating all services.' % smaht_candidate[0]
     else:
         if cluster_name not in cluster_arns:
             check.status = 'FAIL'

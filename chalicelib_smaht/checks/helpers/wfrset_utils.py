@@ -40,7 +40,7 @@ def step_settings(step_name, my_organism, attribution, overwrite=None):
     templates = [i for i in wf_dict if i['app_name'] == step_name]
     # every app name should exist only once in wf_dict
     if len(templates) != 1:
-        raise ValueError('There are multiple {} settings on wfr_cgap_utils.py'.format(step_name))
+        raise ValueError('There are multiple {} settings on wfr_smaht_utils.py'.format(step_name))
     template = templates[0]
 
     # add genomes to output files

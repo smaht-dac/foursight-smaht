@@ -87,23 +87,23 @@ class MetaWorkflowRunsFound:
         self.add_items(search_response)
 
 
-@check_function(file_type="File", start_date=None, action="md5runCGAP_start")
-def md5runCGAP_status(connection, file_type="", start_date=None, **kwargs):
+@check_function(file_type="File", start_date=None, action="md5runsmaht_start")
+def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
     """Find files uploaded to S3 without MD5 checksum
 
     Check assumptions:
-        - all files that have a status uploaded run through md5runCGAP
+        - all files that have a status uploaded run through md5runsmaht
         - all files status uploading/upload failed and NO s3 file are
             skipped
 
     kwargs:
-        file_type -- limit search to a file type, i.e. FileFastq
+        file_type -- limit search to a file type, i.e. FileSubmitted
         start_date -- limit search to files generated since date,
             formatted as YYYY-MM-DD
     """
     start = datetime.utcnow()
-    check = initialize_check("md5runCGAP_status", connection)
-    check.action = "md5runCGAP_start"
+    check = initialize_check("md5runsmaht_status", connection)
+    check.action = "md5runsmaht_start"
     check.description = "Find files uploaded to S3 without MD5 checksum"
 
     env = connection.ff_env
@@ -140,7 +140,7 @@ def md5runCGAP_status(connection, file_type="", start_date=None, **kwargs):
         # find bucket
         if "FileProcessed" in a_file["@type"]:
             my_bucket = out_bucket
-        else:  # covers cases of FileFastq, FileReference
+        else:  # covers cases of FileSubmitted, FileReference
             my_bucket = raw_bucket
         # check if file is in s3
         file_id = a_file["accession"]
@@ -193,10 +193,10 @@ def md5runCGAP_status(connection, file_type="", start_date=None, **kwargs):
 
 
 @action_function(start_missing=True, start_not_switched=True)
-def md5runCGAP_start(connection, start_missing=True, start_not_switched=True, **kwargs):
+def md5runsmaht_start(connection, start_missing=True, start_not_switched=True, **kwargs):
     """Start MD5 checksums on Files or update File MD5 checksum status"""
     start = datetime.utcnow()
-    action, check_result = initialize_action("md5runCGAP_start", connection, kwargs)
+    action, check_result = initialize_action("md5runsmaht_start", connection, kwargs)
 
     targets = []
     runs_started = {}
@@ -607,158 +607,159 @@ def reset_failed_metawfrs(connection, **kwargs):
     return action
 
 
-@check_function(start_date=None, file_accessions=None, action="ingest_vcf_start")
-def ingest_vcf_status(connection, start_date=None, file_accessions=None, **kwargs):
-    """Search for full annotated VCF files that need to be ingested.
-
-    kwargs:
-        start_date -- limit search to files generated since a date,
-            formatted YYYY-MM-DD
-        file_accession -- run check with given files instead of the
-            default query (expects comma/space separated accessions)
-    """
-    check = initialize_check("ingest_vcf_status", connection)
-    check.action = "ingest_vcf_start"
-    check.description = "Find VCFs to ingest"
-
-    vcfs_to_ingest_uuids = []
-    vcfs_to_ingest_accessions = []
-    env = connection.ff_env
-    indexing_queue = ff_utils.stuff_in_queues(env, check_secondary=False)
-    if indexing_queue:
-        msg = "Waiting for indexing queue to clear"
-        check.brief_output.append(msg)
-        check.summary = msg
-        check.allow_action = False
-        check.status = constants.CHECK_PASS
-        return check
-    old_style_query = (
-        "/search/?file_type=full+annotated+VCF&type=FileProcessed"
-        "&file_ingestion_status=No value&file_ingestion_status=N/A"
-        "&status!=uploading&status!=to be uploaded by workflow&status!=upload failed"
-    )
-    new_style_query = (
-        "/search/?vcf_to_ingest=true&type=FileProcessed"
-        "&file_ingestion_status=No value&file_ingestion_status=N/A"
-        "&status!=uploading&status!=to be uploaded by workflow&status!=upload failed"
-    )
-    queries = [old_style_query, new_style_query]
-    if start_date:
-        for idx, query in enumerate(queries):
-            query += "&date_created.from=" + start_date
-            queries[idx] = query
-    if file_accessions:
-        file_accessions = format_kwarg_list(file_accessions)
-        for idx, query in enumerate(queries):
-            for an_acc in file_accessions:
-                query += "&accession={}".format(an_acc)
-            queries[idx] = query
-    for query in queries:
-        search_results = ff_utils.search_metadata(query, key=connection.ff_keys)
-        for result in search_results:
-            vcfs_to_ingest_uuids.append(result.get("uuid"))
-            vcfs_to_ingest_accessions.append(result.get("accession"))
-    msg = "{} file(s) will be added to the ingestion queue".format(
-        str(len(vcfs_to_ingest_uuids))
-    )
-    check.brief_output.append(msg)
-    check.summary = msg
-    check.full_output = {
-        "files": vcfs_to_ingest_uuids,
-        "accessions": vcfs_to_ingest_accessions,
-    }
-    if not vcfs_to_ingest_uuids:
-        check.allow_action = False
-        check.status = constants.CHECK_PASS
-    return check
-
-
-@action_function()
-def ingest_vcf_start(connection, **kwargs):
-    """POST VCF UUIDs to ingestion endpoint."""
-    action, check_result = initialize_action("ingest_vcf_start", connection, kwargs)
-
-    my_auth = connection.ff_keys
-    targets = check_result["files"]
-    post_body = {"uuids": targets}
-    try:
-        ff_utils.post_metadata(post_body, "/queue_ingestion", key=my_auth)
-        action.output["queued for ingestion"] = targets
-    except Exception as e:
-        action.output["error"] = str(e)
-    if action.output.get("error") is None:
-        action.status = constants.ACTION_PASS
-    return action
-
-
-@check_function(file_accessions=None, action="reset_vcf_ingestion_errors")
-def check_vcf_ingestion_errors(connection, file_accessions=None, **kwargs):
-    """
-    Check for finding full annotated VCFs that have failed ingestion, so that they
-    can be reset and the ingestion rerun if needed.
-    """
-    check = initialize_check("check_vcf_ingestion_errors", connection)
-    check.action = "reset_vcf_ingestion_errors"
-    check.description = (
-        "Find VCFs that have failed ingestion to clear metadata for reingestion"
-    )
-
-    files_with_ingestion_errors = {}
-    accessions = format_kwarg_list(file_accessions)
-    ingestion_error_search = "search/?type=FileProcessed&file_ingestion_status=Error"
-    if accessions:
-        ingestion_error_search += "&accession="
-        ingestion_error_search += "&accession=".join(accessions)
-    ingestion_error_search += "&field=@id&field=file_ingestion_error"
-    search_response = ff_utils.search_metadata(
-        ingestion_error_search, key=connection.ff_keys
-    )
-    for result in search_response:
-        file_atid = result.get("@id")
-        first_ten_errors = []
-        ingestion_errors = result.get("file_ingestion_error", [])
-        # usually there are 100 errors, but just report first ten here
-        for idx, error in enumerate(ingestion_errors):
-            if idx == 10:
-                break
-            error_body = error.get("body")
-            first_ten_errors.append(error_body)
-        files_with_ingestion_errors[file_atid] = first_ten_errors
-    msg = "%s File(s) found with ingestion errors" % len(search_response)
-    check.brief_output.append(msg)
-    check.summary = msg
-    check.full_output = files_with_ingestion_errors
-    if not files_with_ingestion_errors:
-        check.status = constants.CHECK_PASS
-        check.allow_action = False
-    return check
-
-
-@action_function()
-def reset_vcf_ingestion_errors(connection, **kwargs):
-    """Reset VCF metadata for reingestion."""
-    action, check_result = initialize_action(
-        "reset_vcf_ingestion_errors", connection, kwargs
-    )
-
-    success = []
-    error = []
-    for vcf_atid in check_result:
-        patch = {"file_ingestion_status": "N/A"}
-        try:
-            ff_utils.patch_metadata(
-                patch,
-                vcf_atid + "?delete_fields=file_ingestion_error",
-                key=connection.ff_keys,
-            )
-            success.append(vcf_atid)
-        except Exception as e:
-            error[vcf_atid] = str(e)
-    action.output["success"] = success
-    action.output["error"] = error
-    if not error:
-        action.status = constants.ACTION_PASS
-    return action
+# XXX: likely to need adaptation for smaht - Will 29 June 2023
+# @check_function(start_date=None, file_accessions=None, action="ingest_vcf_start")
+# def ingest_vcf_status(connection, start_date=None, file_accessions=None, **kwargs):
+#     """Search for full annotated VCF files that need to be ingested.
+#
+#     kwargs:
+#         start_date -- limit search to files generated since a date,
+#             formatted YYYY-MM-DD
+#         file_accession -- run check with given files instead of the
+#             default query (expects comma/space separated accessions)
+#     """
+#     check = initialize_check("ingest_vcf_status", connection)
+#     check.action = "ingest_vcf_start"
+#     check.description = "Find VCFs to ingest"
+#
+#     vcfs_to_ingest_uuids = []
+#     vcfs_to_ingest_accessions = []
+#     env = connection.ff_env
+#     indexing_queue = ff_utils.stuff_in_queues(env, check_secondary=False)
+#     if indexing_queue:
+#         msg = "Waiting for indexing queue to clear"
+#         check.brief_output.append(msg)
+#         check.summary = msg
+#         check.allow_action = False
+#         check.status = constants.CHECK_PASS
+#         return check
+#     old_style_query = (
+#         "/search/?file_type=full+annotated+VCF&type=FileProcessed"
+#         "&file_ingestion_status=No value&file_ingestion_status=N/A"
+#         "&status!=uploading&status!=to be uploaded by workflow&status!=upload failed"
+#     )
+#     new_style_query = (
+#         "/search/?vcf_to_ingest=true&type=FileProcessed"
+#         "&file_ingestion_status=No value&file_ingestion_status=N/A"
+#         "&status!=uploading&status!=to be uploaded by workflow&status!=upload failed"
+#     )
+#     queries = [old_style_query, new_style_query]
+#     if start_date:
+#         for idx, query in enumerate(queries):
+#             query += "&date_created.from=" + start_date
+#             queries[idx] = query
+#     if file_accessions:
+#         file_accessions = format_kwarg_list(file_accessions)
+#         for idx, query in enumerate(queries):
+#             for an_acc in file_accessions:
+#                 query += "&accession={}".format(an_acc)
+#             queries[idx] = query
+#     for query in queries:
+#         search_results = ff_utils.search_metadata(query, key=connection.ff_keys)
+#         for result in search_results:
+#             vcfs_to_ingest_uuids.append(result.get("uuid"))
+#             vcfs_to_ingest_accessions.append(result.get("accession"))
+#     msg = "{} file(s) will be added to the ingestion queue".format(
+#         str(len(vcfs_to_ingest_uuids))
+#     )
+#     check.brief_output.append(msg)
+#     check.summary = msg
+#     check.full_output = {
+#         "files": vcfs_to_ingest_uuids,
+#         "accessions": vcfs_to_ingest_accessions,
+#     }
+#     if not vcfs_to_ingest_uuids:
+#         check.allow_action = False
+#         check.status = constants.CHECK_PASS
+#     return check
+#
+#
+# @action_function()
+# def ingest_vcf_start(connection, **kwargs):
+#     """POST VCF UUIDs to ingestion endpoint."""
+#     action, check_result = initialize_action("ingest_vcf_start", connection, kwargs)
+#
+#     my_auth = connection.ff_keys
+#     targets = check_result["files"]
+#     post_body = {"uuids": targets}
+#     try:
+#         ff_utils.post_metadata(post_body, "/queue_ingestion", key=my_auth)
+#         action.output["queued for ingestion"] = targets
+#     except Exception as e:
+#         action.output["error"] = str(e)
+#     if action.output.get("error") is None:
+#         action.status = constants.ACTION_PASS
+#     return action
+#
+#
+# @check_function(file_accessions=None, action="reset_vcf_ingestion_errors")
+# def check_vcf_ingestion_errors(connection, file_accessions=None, **kwargs):
+#     """
+#     Check for finding full annotated VCFs that have failed ingestion, so that they
+#     can be reset and the ingestion rerun if needed.
+#     """
+#     check = initialize_check("check_vcf_ingestion_errors", connection)
+#     check.action = "reset_vcf_ingestion_errors"
+#     check.description = (
+#         "Find VCFs that have failed ingestion to clear metadata for reingestion"
+#     )
+#
+#     files_with_ingestion_errors = {}
+#     accessions = format_kwarg_list(file_accessions)
+#     ingestion_error_search = "search/?type=FileProcessed&file_ingestion_status=Error"
+#     if accessions:
+#         ingestion_error_search += "&accession="
+#         ingestion_error_search += "&accession=".join(accessions)
+#     ingestion_error_search += "&field=@id&field=file_ingestion_error"
+#     search_response = ff_utils.search_metadata(
+#         ingestion_error_search, key=connection.ff_keys
+#     )
+#     for result in search_response:
+#         file_atid = result.get("@id")
+#         first_ten_errors = []
+#         ingestion_errors = result.get("file_ingestion_error", [])
+#         # usually there are 100 errors, but just report first ten here
+#         for idx, error in enumerate(ingestion_errors):
+#             if idx == 10:
+#                 break
+#             error_body = error.get("body")
+#             first_ten_errors.append(error_body)
+#         files_with_ingestion_errors[file_atid] = first_ten_errors
+#     msg = "%s File(s) found with ingestion errors" % len(search_response)
+#     check.brief_output.append(msg)
+#     check.summary = msg
+#     check.full_output = files_with_ingestion_errors
+#     if not files_with_ingestion_errors:
+#         check.status = constants.CHECK_PASS
+#         check.allow_action = False
+#     return check
+#
+#
+# @action_function()
+# def reset_vcf_ingestion_errors(connection, **kwargs):
+#     """Reset VCF metadata for reingestion."""
+#     action, check_result = initialize_action(
+#         "reset_vcf_ingestion_errors", connection, kwargs
+#     )
+#
+#     success = []
+#     error = []
+#     for vcf_atid in check_result:
+#         patch = {"file_ingestion_status": "N/A"}
+#         try:
+#             ff_utils.patch_metadata(
+#                 patch,
+#                 vcf_atid + "?delete_fields=file_ingestion_error",
+#                 key=connection.ff_keys,
+#             )
+#             success.append(vcf_atid)
+#         except Exception as e:
+#             error[vcf_atid] = str(e)
+#     action.output["success"] = success
+#     action.output["error"] = error
+#     if not error:
+#         action.status = constants.ACTION_PASS
+#     return action
 
 
 @check_function(action="link_meta_workflow_run_output_files")

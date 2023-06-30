@@ -11,7 +11,7 @@ class AppUtils(AppUtils_from_core):
     apply_identity_globally()
 
     # Overridden from subclass.
-    APP_PACKAGE_NAME = "foursight-cgap"
+    APP_PACKAGE_NAME = "foursight-smaht"
 
     # Note that this is set in the new (as of August 2022) apply_identity code;
     # see foursight-core/foursight_core/{app_utils.py,identity.py}.
@@ -22,11 +22,11 @@ class AppUtils(AppUtils_from_core):
 
     # overwriting parent class
     prefix = FOURSIGHT_PREFIX
-    FAVICON = 'https://cgap-dbmi.hms.harvard.edu/favicon.ico'
+    FAVICON = 'https://data.smaht.org/favicon.ico'
     host = HOST
-    package_name = 'chalicelib_cgap'
+    package_name = 'chalicelib_smaht'
 
-    DEFAULT_ENV = os.environ.get("ENV_NAME", "foursight-cgap-env-uninitialized")
+    DEFAULT_ENV = os.environ.get("ENV_NAME", "foursight-smaht-env-uninitialized")
 
 
 app_utils_obj = AppUtils.singleton(AppUtils)

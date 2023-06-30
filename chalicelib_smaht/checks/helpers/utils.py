@@ -96,7 +96,7 @@ def make_embed_request(ids, fields, connection):
         fields = [fields]
     id_chunks = chunk_ids(ids, chunk_size=5)  # Max 5 IDs to /embed as of 20220601 -drr
     for id_chunk in id_chunks:
-        post_body = {"ids": ids, "fields": fields}
+        post_body = {"ids": id_chunk, "fields": fields}
         endpoint = connection.ff_server + "/embed"
         embed_response = ff_utils.authorized_request(
             endpoint, verb="POST", auth=connection.ff_keys, data=json.dumps(post_body)

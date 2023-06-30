@@ -20,21 +20,6 @@ from dcicutils import (
 from .helpers.confchecks import *
 
 
-# XXX: put into utils?
-CGAP_PROD_ES_DOMAIN_NAME = 'cgap-green-6-8'  # XXX: resolve from health page
-CGAP_TEST_CLUSTER = 'search-cgap-testing-6-8-vo4mdkmkshvmyddc65ux7dtaou.us-east-1.es.amazonaws.com:443'
-TEST_ES_CLUSTERS = [
-    CGAP_TEST_CLUSTER,
-]
-
-
-@check_function()
-def wipe_cgap_build_indices(connection, **kwargs):
-    """ Wipes build indices for CGAP (on cgap-testing) """
-    check = CheckResult(connection, 'wipe_cgap_build_indices')
-    return wipe_build_indices(CGAP_TEST_CLUSTER, check)
-
-
 @check_function()
 def elastic_search_space(connection, **kwargs):
     """ Checks that our ES nodes all have a certain amount of space remaining """
@@ -81,7 +66,7 @@ def scale_down_elasticsearch_production(connection, **kwargs):
     check = CheckResult(connection, 'scale_down_elasticsearch_production')
     es_client = es_utils.ElasticSearchServiceClient()
     success = es_client.resize_elasticsearch_cluster(
-                domain_name=CGAP_PROD_ES_DOMAIN_NAME,
+                domain_name=connection.ff_es,
                 master_node_type='t2.medium.elasticsearch',  # discarded
                 master_node_count=0,
                 data_node_type='c5.xlarge.elasticsearch',
@@ -115,7 +100,7 @@ def scale_up_elasticsearch_production(connection, **kwargs):
     check = CheckResult(connection, 'scale_up_elasticsearch_production')
     es_client = es_utils.ElasticSearchServiceClient()
     success = es_client.resize_elasticsearch_cluster(
-                domain_name=CGAP_PROD_ES_DOMAIN_NAME,
+                domain_name=connection.ff_es,
                 master_node_type='c5.large.elasticsearch',
                 master_node_count=3,
                 data_node_type='c5.2xlarge.elasticsearch',
@@ -127,74 +112,6 @@ def scale_up_elasticsearch_production(connection, **kwargs):
     else:
         check.status = 'PASS'
         check.description = check.summary = 'Upward cluster resize triggered'
-    return check
-
-
-@check_function()
-def elastic_beanstalk_health(connection, **kwargs):
-    """
-    Check both environment health and health of individual instances
-    """
-    check = CheckResult(connection, 'elastic_beanstalk_health')
-    full_output = {}
-    eb_client = boto3.client('elasticbeanstalk')
-    resp = eb_client.describe_environment_health(
-        EnvironmentName=connection.ff_env,
-        AttributeNames=['All']
-    )
-    resp_status = resp.get('ResponseMetadata', {}).get('HTTPStatusCode', None)
-    if resp_status >= 400:
-        check.status = 'ERROR'
-        check.description = 'Could not establish a connection to AWS (status %s).' % resp_status
-        return check
-    full_output['status'] = resp.get('Status')
-    full_output['environment_name'] = resp.get('EnvironmentName')
-    full_output['color'] = resp.get('Color')
-    full_output['health_status'] = resp.get('HealthStatus')
-    full_output['causes'] = resp.get('Causes')
-    full_output['instance_health'] = []
-    # now look at the individual instances
-    resp = eb_client.describe_instances_health(
-        EnvironmentName=connection.ff_env,
-        AttributeNames=['All']
-    )
-    resp_status = resp.get('ResponseMetadata', {}).get('HTTPStatusCode', None)
-    if resp_status >= 400:
-        check.status = 'ERROR'
-        check.description = 'Could not establish a connection to AWS (status %s).' % resp_status
-        return check
-    instances_health = resp.get('InstanceHealthList', [])
-    for instance in instances_health:
-        inst_info = {}
-        inst_info['deploy_status'] = instance['Deployment']['Status']
-        inst_info['deploy_version'] = instance['Deployment']['VersionLabel']
-        # get version deployment time
-        application_versions = eb_client.describe_application_versions(
-            ApplicationName='4dn-web',
-            VersionLabels=[inst_info['deploy_version']]
-        )
-        deploy_info = application_versions['ApplicationVersions'][0]
-        inst_info['version_deployed_at'] = datetime.datetime.strftime(deploy_info['DateCreated'], "%Y-%m-%dT%H:%M:%S")
-        inst_info['instance_deployed_at'] = datetime.datetime.strftime(instance['Deployment']['DeploymentTime'], "%Y-%m-%dT%H:%M:%S")
-        inst_info['instance_launced_at'] = datetime.datetime.strftime(instance['LaunchedAt'], "%Y-%m-%dT%H:%M:%S")
-        inst_info['id'] = instance['InstanceId']
-        inst_info['color'] = instance['Color']
-        inst_info['health'] = instance['HealthStatus']
-        inst_info['causes'] = instance.get('causes', [])
-        full_output['instance_health'].append(inst_info)
-    if full_output['color'] == 'Grey':
-        check.status = 'WARN'
-        check.summary = check.description = 'EB environment is updating'
-    elif full_output['color'] == 'Yellow':
-        check.status = 'WARN'
-        check.summary = check.description = 'EB environment is compromised; requests may fail'
-    elif full_output['color'] == 'Red':
-        check.status = 'FAIL'
-        check.summary = check.description = 'EB environment is degraded; requests are likely to fail'
-    else:
-        check.summary = check.description = 'EB environment seems healthy'
-        check.status = 'PASS'
-    check.full_output = full_output
     return check
 
 
