@@ -3,7 +3,6 @@ import requests
 import json
 import datetime
 import time
-import itertools
 import random
 from collections import Counter
 from dcicutils import ff_utils
@@ -16,7 +15,6 @@ from foursight_core.checks.helpers import wrangler_utils
 # individually - they're now part of class Decorators in foursight-core::decorators
 # that requires initialization with foursight prefix.
 from .helpers.confchecks import *
-from .helpers import clone_utils
 
 
 # use a random number to stagger checks
@@ -541,7 +539,7 @@ def patch_states_files_higlass_defaults(connection, **kwargs):
 
     s3 = boto_s3_resource()
     # NOTE WELL: Omitting the appname argument in a legacy context will get the prod bucket for 'fourfront'
-    #            EVEN FOR CGAP. That's maximally backward-compatible, since this used to unconditionally use
+    #            EVEN FOR smaht. That's maximally backward-compatible, since this used to unconditionally use
     #            the fourfront prod bucket. In an orchestrated world, the default will be better. -kmp 5-Oct-2021
     bucket = s3.Bucket('elasticbeanstalk-%s-files' % prod_bucket_env_for_app())
 
@@ -1029,7 +1027,7 @@ def add_grouped_with_file_relation(connection, **kwargs):
 @check_function(item_type=['VariantSample'], action="share_core_project")
 def core_project_status(connection, **kwargs):
     """
-    Ensure CGAP Core projects have their objects shared.
+    Ensure smaht Core projects have their objects shared.
 
     Default behavior is to check only VariantSample objects, but defining
     'item_type' in check_setup.json will override the default and check status
@@ -1040,7 +1038,7 @@ def core_project_status(connection, **kwargs):
     item_type = kwargs.get('item_type')
     full_output = {}
     for item in item_type:
-        search_query = ('search/?project.display_title=CGAP+Core'
+        search_query = ('search/?project.display_title=smaht+Core'
                         '&type=' + item +
                         '&status!=shared'
                         '&frame=object&field=uuid')
@@ -1054,8 +1052,8 @@ def core_project_status(connection, **kwargs):
 
     if full_output:
         check.status = 'WARN'
-        check.summary = 'Some CGAP Core items are not shared'
-        check.description = ('{} CGAP Core items do not have shared'
+        check.summary = 'Some smaht Core items are not shared'
+        check.description = ('{} smaht Core items do not have shared'
                              ' status'.format(sum([len(x) for x in
                                                   full_output.values()])))
         brief_output = {key: len(value) for key, value in full_output.items()}
@@ -1065,8 +1063,8 @@ def core_project_status(connection, **kwargs):
         check.action = 'share_core_project'
     else:
         check.status = 'PASS'
-        check.summary = 'All CGAP Core items are shared.'
-        check.description = ('All CGAP Core items are shared:'
+        check.summary = 'All smaht Core items are shared.'
+        check.description = ('All smaht Core items are shared:'
                              ' {}'.format(item_type))
     return check
 
@@ -1074,7 +1072,7 @@ def core_project_status(connection, **kwargs):
 @action_function()
 def share_core_project(connection, **kwargs):
     """
-    Change CGAP Core project item status to shared.
+    Change smaht Core project item status to shared.
 
     Patches the status of the output of core_project_status above.
     """
@@ -1306,26 +1304,3 @@ def get_metadata_for_cases_to_clone(connection, **kwargs):
     check.allow_action = True
     return check
 
-
-@action_function()
-def clone_cases(connection, **kwargs):
-    """
-    """
-    action = ActionResult(connection, 'clone_cases')
-    check_response = action.get_associated_check_result(kwargs)
-    clone_dict = {}
-    errors = {}
-    for case, data in check_response['full_output']['run'].items():
-        try:
-            new_case = clone_utils.CaseToClone(case, connection.ff_keys, data['metawf_uuid'],
-                                               check_response['kwargs']['version'], [])
-        except Exception as e:
-            errors[case] = str(e)
-        else:
-            clone_dict.update(new_case.new_case_dict)
-    action.output = {'clone success': clone_dict, 'clone fail': errors}
-    if errors:
-        action.status = 'FAIL'
-    else:
-        action.status = 'DONE'
-    return action

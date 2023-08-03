@@ -4,7 +4,7 @@
         "group": "Elasticsearch Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -12,7 +12,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "status_of_elasticsearch_indices": {
@@ -23,7 +23,7 @@
         ],
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -31,7 +31,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "indexing_records": {
@@ -42,7 +42,7 @@
         ],
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -50,7 +50,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "page_children_routes": {
@@ -58,7 +58,7 @@
         "group": "Audit Checks",
         "schedule": {
             "monthly_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -66,7 +66,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "check_validation_errors": {
@@ -74,7 +74,7 @@
         "group": "Audit Checks",
         "schedule": {
             "monthly_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -82,7 +82,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "metawfrs_to_run": {
@@ -90,7 +90,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -98,14 +98,17 @@
                     "dependencies": []
                 }
             }
-        }
+        },
+        "display": [
+            "staging"
+        ]
     },
     "metawfrs_to_checkstatus": {
         "title": "MetaWorkflowRuns to check status",
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks_3": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -113,14 +116,17 @@
                     "dependencies": []
                 }
             }
-        }
+        },
+        "display": [
+            "staging"
+        ]
     },
     "spot_failed_metawfrs": {
         "title": "Spot-failed MetaWorkflowRuns",
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks_2": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -128,14 +134,17 @@
                     "dependencies": []
                 }
             }
-        }
+        },
+        "display": [
+            "staging"
+        ]
     },
     "failed_metawfrs": {
         "title": "Failed MetaWorkflowRuns",
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -143,7 +152,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "find_meta_workflow_runs_requiring_output_linktos": {
@@ -151,21 +160,24 @@
         "group": "Pipeline Checks",
         "schedule": {
             "hourly_checks_2": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
                     }
                 }
             }
-        }
+        },
+        "display": [
+            "staging"
+        ]
     },
     "find_meta_workflow_runs_with_linkto_errors": {
         "title": "MetaWorkflowRuns with output file PATCH errors",
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -173,7 +185,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "find_meta_workflow_runs_to_kill": {
@@ -181,7 +193,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -189,23 +201,7 @@
             }
         },
         "display": [
-            "<env-name>"
-        ]
-    },
-    "find_sample_processing_for_meta_workflow": {
-        "title": "Create MetaWorkflowRun from SampleProcessing",
-        "group": "Pipeline Checks",
-        "schedule": {
-            "manual_checks": {
-                "<env-name>": {
-                    "kwargs": {
-                        "primary": true
-                    }
-                }
-            }
-        },
-        "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "find_sample_for_meta_workflow": {
@@ -213,7 +209,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -221,30 +217,15 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
-    },
-    "md5runCGAP_status": {
-        "title": "MD5 runs",
-        "group": "Pipeline Checks",
-        "schedule": {
-            "hourly_checks": {
-                "<env-name>": {
-                    "kwargs": {
-                        "primary": true,
-                        "queue_action": "prod"
-                    },
-                    "dependencies": []
-                }
-            }
-        }
     },
     "find_meta_workflow_runs_with_quality_metric_failure": {
         "title": "MetaWorkflowRuns with QC failure(s)",
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -252,41 +233,7 @@
             }
         },
         "display": [
-            "<env-name>"
-        ]
-    },
-    "ingest_vcf_status": {
-        "title": "Trigger VCF ingestion",
-        "group": "Pipeline Checks",
-        "schedule": {
-            "manual_checks": {
-                "<env-name>": {
-                    "kwargs": {
-                        "primary": true
-                    },
-                    "dependencies": []
-                }
-            }
-        },
-        "display": [
-            "<env-name>"
-        ]
-    },
-    "check_vcf_ingestion_errors": {
-        "title": "Check VCFs for ingestion errors",
-        "group": "Pipeline Checks",
-        "schedule": {
-            "manual_checks": {
-                "<env-name>": {
-                    "kwargs": {
-                        "primary": true
-                    },
-                    "dependencies": []
-                }
-            }
-        },
-        "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "elastic_search_space": {
@@ -294,7 +241,7 @@
         "group": "Elasticsearch Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -303,7 +250,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "elasticsearch_s3_count_diff": {
@@ -311,20 +258,23 @@
         "group": "Elasticsearch Checks",
         "schedule": {
             "monthly_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
                 }
             }
-        }
+        },
+        "display": [
+            "staging"
+        ]
     },
     "clean_s3_es_checks": {
         "title": "Wipe Checks Older Than One Month",
         "group": "System Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -333,7 +283,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "snapshot_rds": {
@@ -341,7 +291,7 @@
         "group": "System Checks",
         "schedule": {
             "monthly_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -350,72 +300,7 @@
             }
         },
         "display": [
-            "<env-name>"
-        ]
-    },
-    "core_project_status": {
-        "title": "Ensure CGAP Core project items are shared",
-        "group": "Metadata Checks",
-        "schedule": {
-            "morning_checks": {
-                "<env-name>": {
-                    "kwargs": {
-                        "primary": true,
-                        "queue_action": "prod",
-                        "item_type": [
-                            "VariantSample",
-                            "Case",
-                            "Family",
-                            "Individual",
-                            "WorkflowRun",
-                            "FileFastq",
-                            "FileProcessed",
-                            "Sample",
-                            "SampleProcessing",
-                            "Report",
-                            "QualityMetric",
-                            "FilterSet"
-                        ]
-                    }
-                }
-            }
-        },
-        "display": [
-            "<env-name>"
-        ]
-    },
-    "update_variant_genelist": {
-        "title": "Add gene lists to variant samples",
-        "group": "Metadata Checks",
-        "schedule": {
-            "morning_checks": {
-                "<env-name>": {
-                    "kwargs": {
-                        "primary": true,
-                        "queue_action": "prod"
-                    }
-                }
-            }
-        },
-        "display": [
-            "<env-name>"
-        ]
-    },
-    "get_metadata_for_cases_to_clone": {
-        "title": "Get Clone Case Metadata",
-        "group": "Metadata Checks",
-        "schedule": {
-            "manual_checks": {
-                "<env-name>": {
-                    "kwargs": {
-                        "primary": true
-                    },
-                    "dependencies": []
-                }
-            }
-        },
-        "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "ecs_status": {
@@ -423,7 +308,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -432,7 +317,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "ecs_task_listing": {
@@ -440,7 +325,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -449,7 +334,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "trigger_codebuild_run": {
@@ -457,7 +342,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -466,7 +351,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "update_ecs_application_versions": {
@@ -474,7 +359,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -483,7 +368,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "scale_ecs_service": {
@@ -491,7 +376,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -500,7 +385,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "check_file_lifecycle_status": {
@@ -508,7 +393,7 @@
         "group": "Lifecycle Checks",
         "schedule": {
             "hourly_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "files_per_run": 100,
                         "max_checking_frequency": 14,
@@ -520,7 +405,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "check_deleted_files_lifecycle_status": {
@@ -528,7 +413,7 @@
         "group": "Lifecycle Checks",
         "schedule": {
             "hourly_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "files_per_run": 50,
                         "check_after": 14,
@@ -539,7 +424,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "access_key_status": {
@@ -547,34 +432,40 @@
         "group": "Maintenance Checks",
         "schedule": {
             "morning_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
                     }
                 }
             }
-        }
+        },
+        "display": [
+            "staging"
+        ]
     },
     "rollback_application_version": {
         "title": "Application Rollback Check",
         "group": "Maintenance Checks",
         "schedule": {
             "fifteen_min_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
                 }
             }
-        }
+        },
+        "display": [
+            "staging"
+        ]
     },
     "datastore_status": {
         "title": "Datastore Status",
         "group": "Maintenance Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -583,7 +474,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "scale_rds": {
@@ -591,7 +482,7 @@
         "group": "Maintenance Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -600,7 +491,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "scale_elasticsearch": {
@@ -608,7 +499,7 @@
         "group": "Maintenance Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -617,7 +508,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     },
     "invoke_ecs_task": {
@@ -625,7 +516,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "<env-name>": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     },
@@ -634,7 +525,7 @@
             }
         },
         "display": [
-            "<env-name>"
+            "staging"
         ]
     }
 }

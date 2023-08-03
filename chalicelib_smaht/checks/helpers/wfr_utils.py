@@ -65,9 +65,9 @@ workflow_details = {
         "accepted_versions": ["v14", "v15", "v16", "v17", "v18", "v19", "v20", "v22"]
     },
     # step 10
-    'cgap-bamqc': {
+    'smaht-bamqc': {
         "run_time": 12,
-        "accepted_versions": ["v2", "v3", "v4", "v22"]   # cgap-qc v5 is the same as cgap-pipeline v22
+        "accepted_versions": ["v2", "v3", "v4", "v22"]   # smaht-qc v5 is the same as smaht-pipeline v22
     },
     # # PART II
     # part II step 1
@@ -127,11 +127,11 @@ workflow_details = {
     },
     "workflow_granite-qcVCF": {
         "run_time": 12,
-        "accepted_versions": ["v4", "v22"]  # cgap-qc v5 is the same as cgap-pipeline v22
+        "accepted_versions": ["v4", "v22"]  # smaht-qc v5 is the same as smaht-pipeline v22
     },
     "workflow_peddy": {
         "run_time": 12,
-        "accepted_versions": ["v4", "v22"]  # cgap-qc v5 is the same as cgap-pipeline v22
+        "accepted_versions": ["v4", "v22"]  # smaht-qc v5 is the same as smaht-pipeline v22
     }
 }
 

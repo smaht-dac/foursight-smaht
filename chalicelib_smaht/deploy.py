@@ -10,7 +10,7 @@ from foursight_core.deploy import Deploy as Deploy_from_core
 class Deploy(Deploy_from_core):
 
     CONFIG_BASE = Deploy_from_core.CONFIG_BASE
-    CONFIG_BASE['app_name'] = 'foursight-cgap'
+    CONFIG_BASE['app_name'] = 'foursight-smaht'
 
     config_dir = dirname(dirname(__file__))
 
