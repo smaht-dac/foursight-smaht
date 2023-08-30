@@ -24,7 +24,8 @@ pytz = "^2020.1"
 magma-suite = "^1.2.2"
 tibanna-ff = "^1.3.0"
 MarkupSafe = "1.1.1"
-foursight-core = "^4.3.0.1b46"
+#foursight-core = "^4.3.0.1b46"
+foursight-core = "4.4.0.1b7"
 # use below for tests but not for deployment
 #foursight-core = { git = "https://github.com/4dn-dcic/foursight-core.git", branch="core2" }
 cgap-pipeline-utils = "23.0"
@@ -36,6 +37,7 @@ pytest-cov = "2.7.1"
 flaky = "3.6.1"
 
 [tool.poetry.scripts]
+local-check-execution = "chalicelib_smaht.scripts.local_check_execution:main"
 publish-to-pypi = "dcicutils.scripts.publish_to_pypi:main"
 
 [build-system]
