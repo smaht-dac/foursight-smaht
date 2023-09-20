@@ -7,6 +7,10 @@ foursight-smaht
 Change Log
 ----------
 
+0.1.0
+=====
+* Update to Python 3.11.
+
 0.0.1
 =====
 
