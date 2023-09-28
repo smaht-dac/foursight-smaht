@@ -9,6 +9,7 @@ Change Log
 
 0.1.0
 =====
+
 * Update to Python 3.11.
 * Removed get_metadata_for_cases_to_clone from wrangler_checks.py (no cases in SMaHT).
 * Added local_check_execution.py.
