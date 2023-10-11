@@ -1,5 +1,7 @@
+from foursight_core.captured_output import captured_output
 from foursight_core.scripts.local_check_execution import local_check_execution
-from chalicelib_smaht.app_utils import app_utils_obj as app_utils
+with captured_output():
+    from chalicelib_smaht.app_utils import app_utils_obj as app_utils
 
 
 def main():
