@@ -7,6 +7,13 @@ foursight-smaht
 Change Log
 ----------
 
+
+0.2.0
+=====
+
+* New  Portal Reindex page.
+
+
 0.1.0
 =====
 
