@@ -427,23 +427,22 @@ tox = ["tox"]
 
 [[package]]
 name = "dcicutils"
-version = "8.0.0"
+version = "7.12.0.2b9"
 description = "Utility package for interacting with the 4DN Data Portal and other 4DN resources"
 optional = false
 python-versions = ">=3.8,<3.12"
 files = [
-    {file = "dcicutils-8.0.0-py3-none-any.whl", hash = "sha256:339834dd93a70fdc26d1c552273c1390275ba637583bbec41a4a8035270b0c72"},
-    {file = "dcicutils-8.0.0.tar.gz", hash = "sha256:50aafbe2dce173bb6779184be0db8497d818a41b62bd686851cf64de507c5b76"},
+    {file = "dcicutils-7.12.0.2b9-py3-none-any.whl", hash = "sha256:12d3e6cd0f26ad7e464a5e8c7c646d28d23f63a1e423ca4fa7ae536f3b9fd4d2"},
+    {file = "dcicutils-7.12.0.2b9.tar.gz", hash = "sha256:ef0da351164cd2495e5570d393c6564fdf8dab1f60a1b613c40dfd405693894e"},
 ]
 
 [package.dependencies]
 aws-requests-auth = ">=0.4.2,<1"
-boto3 = ">=1.28.57,<2.0.0"
-botocore = ">=1.31.57,<2.0.0"
+boto3 = ">=1.28.54,<2.0.0"
+botocore = ">=1.31.54,<2.0.0"
 docker = ">=4.4.4,<5.0.0"
 elasticsearch = "7.13.4"
 gitpython = ">=3.1.2,<4.0.0"
-jsonc-parser = ">=1.1.5,<2.0.0"
 opensearch-py = ">=2.0.1,<3.0.0"
 PyJWT = ">=2.6.0,<3.0.0"
 pyOpenSSL = ">=23.1.1,<24.0.0"
@@ -569,37 +568,16 @@ files = [
 
 [[package]]
 name = "foursight-core"
-version = "5.0.0"
+version = "5.0.0.1b2"
 description = "Serverless Chalice Application for Monitoring"
 optional = false
-python-versions = ">=3.8,<3.12"
-files = [
-    {file = "foursight_core-5.0.0-py3-none-any.whl", hash = "sha256:c298ec7778fc3765a7181e1984ca271a7cdcaa3641bf8935d3349cfd42c9818e"},
-    {file = "foursight_core-5.0.0.tar.gz", hash = "sha256:efc10c815e91ad439884f5e1dd1f294ca813c34e2ad479ca9303b9bb65341ecf"},
-]
+python-versions = "*"
+files = []
+develop = true
 
-[package.dependencies]
-boto3 = ">=1.28.62,<2.0.0"
-botocore = ">=1.31.62,<2.0.0"
-click = ">=7.1.2,<8.0.0"
-cron-descriptor = ">=1.2.31,<2.0.0"
-cryptography = "39.0.2"
-dcicutils = ">=8.0.0,<9.0.0"
-elasticsearch = "7.13.4"
-elasticsearch-dsl = ">=7.0.0,<8.0.0"
-geocoder = "1.38.1"
-gitpython = ">=3.1.2,<4.0.0"
-google = ">=3.0.0,<4.0.0"
-google-api-python-client = ">=1.12.5,<2.0.0"
-google-auth-oauthlib = ">=0.7.0,<0.8.0"
-Jinja2 = ">=3.1.2,<4.0.0"
-MarkupSafe = ">=2.1.3,<3.0.0"
-pyDes = ">=2.0.1,<3.0.0"
-PyJWT = ">=2.5.0,<3.0.0"
-pytz = ">=2020.1"
-redis = ">=4.5.1,<5.0.0"
-toml = ">=0.10.2,<1"
-tzlocal = ">=5.0.1,<6.0.0"
+[package.source]
+type = "directory"
+url = "../foursight-core"
 
 [[package]]
 name = "future"
@@ -659,20 +637,6 @@ gitdb = ">=4.0.1,<5"
 
 [package.extras]
 test = ["black", "coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mypy", "pre-commit", "pytest", "pytest-cov", "pytest-sugar"]
-
-[[package]]
-name = "google"
-version = "3.0.0"
-description = "Python bindings to the Google search engine."
-optional = false
-python-versions = "*"
-files = [
-    {file = "google-3.0.0-py2.py3-none-any.whl", hash = "sha256:889cf695f84e4ae2c55fbc0cfdaf4c1e729417fa52ab1db0485202ba173e4935"},
-    {file = "google-3.0.0.tar.gz", hash = "sha256:143530122ee5130509ad5e989f0512f7cb218b2d4eddbafbad40fd10e8d8ccbe"},
-]
-
-[package.dependencies]
-beautifulsoup4 = "*"
 
 [[package]]
 name = "google-api-core"
@@ -752,24 +716,6 @@ files = [
 [package.dependencies]
 google-auth = "*"
 httplib2 = ">=0.19.0"
-
-[[package]]
-name = "google-auth-oauthlib"
-version = "0.7.1"
-description = "Google Authentication Library"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "google-auth-oauthlib-0.7.1.tar.gz", hash = "sha256:9940f543f77d1447432a93781d7c931fb53e418023351ad4bf9e92837a1154ec"},
-    {file = "google_auth_oauthlib-0.7.1-py2.py3-none-any.whl", hash = "sha256:860e54c4b58b2664116c9cb44325bc0ec92bcd93e8211698ceea911b1b873b86"},
-]
-
-[package.dependencies]
-google-auth = ">=2.14.0"
-requests-oauthlib = ">=0.7.0"
-
-[package.extras]
-tool = ["click (>=6.0.0)"]
 
 [[package]]
 name = "googleapis-common-protos"
@@ -883,30 +829,19 @@ files = [
 ]
 
 [[package]]
-name = "jsonc-parser"
-version = "1.1.5"
-description = "A lightweight, native tool for parsing .jsonc files"
-optional = false
-python-versions = ">=3.5"
-files = [
-    {file = "jsonc-parser-1.1.5.tar.gz", hash = "sha256:7126d17725b0413cd40af4297d9f6412c4181a62135e4c41cdf8f6a82c5936e6"},
-    {file = "jsonc_parser-1.1.5-py3-none-any.whl", hash = "sha256:abd1db76a4c6d1733ec7bb5340a89c49cbc878a181a1e7947ee6719eedf2c6cc"},
-]
-
-[[package]]
 name = "magma-suite"
-version = "2.0.0"
+version = "1.5.0.3b5"
 description = "Collection of tools to manage meta-workflows automation."
 optional = false
 python-versions = ">=3.8,<3.12"
 files = [
-    {file = "magma_suite-2.0.0-py3-none-any.whl", hash = "sha256:462845484ebf1edef187c74f4c470e49726c95ab30c90555ada112e2bbb90c95"},
-    {file = "magma_suite-2.0.0.tar.gz", hash = "sha256:03577b5567ffe6fb99409d26575dd44b836a166b7ed9b8ec268b8e754d46403a"},
+    {file = "magma_suite-1.5.0.3b5-py3-none-any.whl", hash = "sha256:bc9b97bae6dc2457cd66bd965238836e7a9d952c08417086e7ecf63abc47480b"},
+    {file = "magma_suite-1.5.0.3b5.tar.gz", hash = "sha256:85aa56cb69fb42377a95ceec80015e028dfa8d1262bc7539fe92be3fccafaccf"},
 ]
 
 [package.dependencies]
-dcicutils = "8.0.0"
-tibanna-ff = "3.1.1"
+dcicutils = "7.12.0.2b9"
+tibanna-ff = "2.0.1.1b10"
 
 [[package]]
 name = "markupsafe"
@@ -980,22 +915,6 @@ files = [
 
 [package.dependencies]
 psutil = {version = ">=4.0.0", markers = "sys_platform != \"cygwin\""}
-
-[[package]]
-name = "oauthlib"
-version = "3.2.2"
-description = "A generic, spec-compliant, thorough implementation of the OAuth request-signing logic"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "oauthlib-3.2.2-py3-none-any.whl", hash = "sha256:8139f29aac13e25d502680e9e19963e83f16838d48a0d71c287fe40e7067fbca"},
-    {file = "oauthlib-3.2.2.tar.gz", hash = "sha256:9859c40929662bec5d64f34d01c99e093149682a3f38915dc0655d5a633dd918"},
-]
-
-[package.extras]
-rsa = ["cryptography (>=3.0.0)"]
-signals = ["blinker (>=1.4.0)"]
-signedtoken = ["cryptography (>=3.0.0)", "pyjwt (>=2.0.0,<3)"]
 
 [[package]]
 name = "opensearch-py"
@@ -1151,16 +1070,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 files = [
     {file = "pycparser-2.21-py2.py3-none-any.whl", hash = "sha256:8ee45429555515e1f6b185e78100aea234072576aa43ab53aefcae078162fca9"},
     {file = "pycparser-2.21.tar.gz", hash = "sha256:e644fdec12f7872f86c58ff790da456218b10f863970249516d60a5eaca77206"},
-]
-
-[[package]]
-name = "pydes"
-version = "2.0.1"
-description = "Pure python implementation of DES and TRIPLE DES encryption algorithm"
-optional = false
-python-versions = "*"
-files = [
-    {file = "pyDes-2.0.1.tar.gz", hash = "sha256:e2ab8e21d2b83e90d90dbfdcb6fb8ac0000b813238b7ecaede04f8435c389012"},
 ]
 
 [[package]]
@@ -1460,24 +1369,6 @@ socks = ["PySocks (>=1.5.6,!=1.5.7)", "win-inet-pton"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<5)"]
 
 [[package]]
-name = "requests-oauthlib"
-version = "1.3.1"
-description = "OAuthlib authentication support for Requests."
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-files = [
-    {file = "requests-oauthlib-1.3.1.tar.gz", hash = "sha256:75beac4a47881eeb94d5ea5d6ad31ef88856affe2332b9aafb52c6452ccf0d7a"},
-    {file = "requests_oauthlib-1.3.1-py2.py3-none-any.whl", hash = "sha256:2577c501a2fb8d05a304c09d090d6e47c306fef15809d102b327cf8364bddab5"},
-]
-
-[package.dependencies]
-oauthlib = ">=3.0.0"
-requests = ">=2.0.0"
-
-[package.extras]
-rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
-
-[[package]]
 name = "rfc3986"
 version = "1.5.0"
 description = "Validating URI References per RFC 3986"
@@ -1593,13 +1484,13 @@ tests = ["coverage", "freezegun (>=0.2.8)", "pretend", "pytest (>=3.3.0)", "pyth
 
 [[package]]
 name = "tibanna"
-version = "5.1.0"
+version = "4.0.0.1b4"
 description = "Tibanna runs portable pipelines (in CWL/WDL) on the AWS Cloud."
 optional = false
 python-versions = ">=3.8,<3.12"
 files = [
-    {file = "tibanna-5.1.0-py3-none-any.whl", hash = "sha256:fbe066eda6544a680690e9510f2cb535c79cb8b05ee70d627079e1e1cf8339ff"},
-    {file = "tibanna-5.1.0.tar.gz", hash = "sha256:3d293d701c822a97cb1e7ff0a015b310a87f6461087670898b4db4c41b918dfd"},
+    {file = "tibanna-4.0.0.1b4-py3-none-any.whl", hash = "sha256:f3fde1244f3a52641bdb0cdfd2688f46e3b31197b195b05f7fbb3161df2d4dfb"},
+    {file = "tibanna-4.0.0.1b4.tar.gz", hash = "sha256:6a8a8a4a2daa6c0c079ed9db764dd107ea97b0d1356941b90831f4437b24fbab"},
 ]
 
 [package.dependencies]
@@ -1611,21 +1502,21 @@ tomlkit = ">=0.11.0,<0.12.0"
 
 [[package]]
 name = "tibanna-ff"
-version = "3.1.1"
+version = "2.0.1.1b10"
 description = "Tibanna runs portable pipelines (in CWL/WDL) on the AWS Cloud."
 optional = false
 python-versions = ">=3.8,<3.12"
 files = [
-    {file = "tibanna_ff-3.1.1-py3-none-any.whl", hash = "sha256:fac37cc31318dcc9f0fa6ce9dd9b1ce6347452c704f499939d054d51cab167b4"},
-    {file = "tibanna_ff-3.1.1.tar.gz", hash = "sha256:7801dface3e60ef6b867b8cda875238cf511bce3938d2f52f28ccb77a83c6e17"},
+    {file = "tibanna_ff-2.0.1.1b10-py3-none-any.whl", hash = "sha256:0e482f6cf98bfa18b4353e91686da176d4cdc1b4636b5cc0bde1529bd70ef0bd"},
+    {file = "tibanna_ff-2.0.1.1b10.tar.gz", hash = "sha256:f08ad73325dce65157c36a780b8e0252ec56829dae17b0960bd86faae18aa594"},
 ]
 
 [package.dependencies]
 boto3 = ">=1.28.56,<2.0.0"
 botocore = ">=1.31.56,<2.0.0"
-dcicutils = "8.0.0"
+dcicutils = "7.12.0.2b9"
 requests = "2.27.1"
-tibanna = "5.1.0"
+tibanna = "4.0.0.1b4"
 tomlkit = ">=0.11.0,<0.12.0"
 
 [[package]]
@@ -1843,4 +1734,4 @@ test = ["pytest (>=6.0.0)", "setuptools (>=65)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "bb819ec8749404753ecd78c6b2051e48b0dbcb1393a96a7a959e11f34da3ff50"
+content-hash = "298a5f7d41be57b89f48ea35d15288da58d6b18ffe8d6f411dddb2ccde9738fb"
