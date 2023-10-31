@@ -155,57 +155,8 @@
             "staging"
         ]
     },
-    "find_meta_workflow_runs_requiring_output_linktos": {
-        "title": "MetaWorkflowRuns to PATCH output files",
-        "group": "Pipeline Checks",
-        "schedule": {
-            "hourly_checks_2": {
-                "data": {
-                    "kwargs": {
-                        "primary": true,
-                        "queue_action": "prod"
-                    }
-                }
-            }
-        },
-        "display": [
-            "staging"
-        ]
-    },
-    "find_meta_workflow_runs_with_linkto_errors": {
-        "title": "MetaWorkflowRuns with output file PATCH errors",
-        "group": "Pipeline Checks",
-        "schedule": {
-            "manual_checks": {
-                "data": {
-                    "kwargs": {
-                        "primary": true
-                    }
-                }
-            }
-        },
-        "display": [
-            "staging"
-        ]
-    },
     "find_meta_workflow_runs_to_kill": {
         "title": "MetaWorkflowRuns to stop",
-        "group": "Pipeline Checks",
-        "schedule": {
-            "manual_checks": {
-                "data": {
-                    "kwargs": {
-                        "primary": true
-                    }
-                }
-            }
-        },
-        "display": [
-            "staging"
-        ]
-    },
-    "find_sample_for_meta_workflow": {
-        "title": "Create MetaWorkflowRun from Sample",
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
@@ -392,7 +343,7 @@
         "title": "Check for files that require lifecycle updates",
         "group": "Lifecycle Checks",
         "schedule": {
-            "hourly_checks": {
+            "manual_checks": {
                 "data": {
                     "kwargs": {
                         "files_per_run": 100,
@@ -412,7 +363,7 @@
         "title": "Check for deleted files that require lifecycle updates",
         "group": "Lifecycle Checks",
         "schedule": {
-            "hourly_checks": {
+            "manual_checks": {
                 "data": {
                     "kwargs": {
                         "files_per_run": 50,

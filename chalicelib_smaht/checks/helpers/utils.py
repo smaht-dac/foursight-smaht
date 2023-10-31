@@ -118,7 +118,7 @@ def chunk_ids(ids, chunk_size=5):
 def get_step_function_name(connection):
     """Create step function environment from given connection"""
     # XXX Acquire from health page in future?
-    return "tibanna_zebra_" + connection.ff_env.replace("fourfront-", "")
+    return "tibanna_tiger_" + connection.ff_env.replace("fourfront-", "")
 
 
 def is_past_time_limit(start, limit):
