@@ -69,22 +69,6 @@
       "cgap-supertest"
     ]
   },
-  "change_in_item_counts": {
-    "title": "Change in item counts",
-    "group": "Metadata Checks",
-    "schedule": {
-      "manual_checks": {
-        "cgap-supertest": {
-          "kwargs": {
-            "primary": true
-          }
-        }
-      }
-    },
-    "display": [
-      "cgap-supertest"
-    ]
-  },
   "page_children_routes": {
     "title": "Pages with bad routes",
     "group": "Audit Checks",
@@ -101,59 +85,11 @@
       "cgap-supertest"
     ]
   },
-  "workflow_properties": {
-    "title": "Workflows with missing or duplicate steps properties",
-    "group": "Audit Checks",
-    "schedule": {
-      "manual_checks": {
-        "cgap-supertest": {
-          "kwargs": {
-            "primary": true
-          }
-        }
-      }
-    },
-    "display": [
-      "cgap-supertest"
-    ]
-  },
   "check_validation_errors": {
     "title": "Search for Validation Errors",
     "group": "Audit Checks",
     "schedule": {
       "monthly_checks": {
-        "cgap-supertest": {
-          "kwargs": {
-            "primary": true
-          }
-        }
-      }
-    },
-    "display": [
-      "cgap-supertest"
-    ]
-  },
-  "workflow_run_has_deleted_input_file": {
-    "title": "WorkflowRun linked to deleted Files",
-    "group": "Metadata Checks",
-    "schedule": {
-      "manual_checks": {
-        "cgap-supertest": {
-          "kwargs": {
-            "primary": true
-          }
-        }
-      }
-    },
-    "display": [
-      "cgap-supertest"
-    ]
-  },
-  "check_suggested_enum_values": {
-    "title": "Check fields with suggested enum",
-    "group": "Metadata Checks",
-    "schedule": {
-      "manual_checks": {
         "cgap-supertest": {
           "kwargs": {
             "primary": true
@@ -340,71 +276,6 @@
   "secondary_queue_deduplication": {
     "title": "Secondary queue deduplication",
     "group": "System Checks",
-    "schedule": {
-      "manual_checks": {
-        "cgap-supertest": {
-          "kwargs": {
-            "primary": true
-          },
-          "dependencies": []
-        }
-      }
-    },
-    "display": [
-      "cgap-supertest"
-    ]
-  },
-  "core_project_status": {
-    "title": "Ensure CGAP Core project items are shared",
-    "group": "Metadata Checks",
-    "schedule": {
-      "morning_checks": {
-        "cgap-supertest": {
-          "kwargs": {
-            "primary": true,
-            "queue_action": "prod",
-            "item_type": [
-              "VariantSample",
-              "Case",
-              "Family",
-              "Individual",
-              "WorkflowRun",
-              "FileFastq",
-              "FileProcessed",
-              "Sample",
-              "SampleProcessing",
-              "Report",
-              "QualityMetric",
-              "FilterSet"
-            ]
-          }
-        }
-      }
-    },
-    "display": [
-      "cgap-supertest"
-    ]
-  },
-  "update_variant_genelist": {
-    "title": "Add gene lists to variant samples",
-    "group": "Metadata Checks",
-    "schedule": {
-      "morning_checks": {
-        "cgap-supertest": {
-          "kwargs": {
-            "primary": true,
-            "queue_action": "prod"
-          }
-        }
-      }
-    },
-    "display": [
-      "cgap-supertest"
-    ]
-  },
-  "get_metadata_for_cases_to_clone": {
-    "title": "Get Clone Case Metadata",
-    "group": "Metadata Checks",
     "schedule": {
       "manual_checks": {
         "cgap-supertest": {
