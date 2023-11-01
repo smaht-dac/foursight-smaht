@@ -741,15 +741,6 @@ def get_wfr_out(emb_file, wfr_name, key=None, all_wfrs='not given', versions=Non
             return {'status': "no completed run, time-out"}
 
 
-def get_attribution(file_json):
-    """give file response in embedded frame and extract attribution info"""
-    attributions = {
-        'project': file_json['project']['@id'],
-        'institution': file_json['institution']['@id']
-    }
-    return attributions
-
-
 def extract_file_info(obj_uuid, arg_name, additional_parameters):
     """Takes file id, and creates info dict for tibanna"""
     # start a dictionary
