@@ -13,6 +13,7 @@ Change Log
 
 * New Portal Reindex page.
 * Update poetry to 1.4.2.
+* Update dcicutils to 8.0.0.
 
 
 0.1.0
