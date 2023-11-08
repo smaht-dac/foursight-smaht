@@ -4,7 +4,7 @@
         "group": "Elasticsearch Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -23,7 +23,7 @@
         ],
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -42,7 +42,7 @@
         ],
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -58,7 +58,7 @@
         "group": "Audit Checks",
         "schedule": {
             "monthly_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -74,7 +74,7 @@
         "group": "Audit Checks",
         "schedule": {
             "monthly_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -90,7 +90,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -108,7 +108,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks_3": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -126,7 +126,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks_2": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -144,7 +144,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -160,7 +160,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -176,7 +176,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -192,7 +192,7 @@
         "group": "Elasticsearch Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -209,7 +209,7 @@
         "group": "Elasticsearch Checks",
         "schedule": {
             "monthly_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -225,7 +225,7 @@
         "group": "System Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -242,7 +242,7 @@
         "group": "System Checks",
         "schedule": {
             "monthly_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -259,7 +259,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -276,7 +276,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -293,7 +293,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -310,7 +310,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -327,7 +327,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -344,7 +344,7 @@
         "group": "Lifecycle Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "files_per_run": 100,
                         "max_checking_frequency": 14,
@@ -364,7 +364,7 @@
         "group": "Lifecycle Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "files_per_run": 50,
                         "check_after": 14,
@@ -383,7 +383,7 @@
         "group": "Maintenance Checks",
         "schedule": {
             "morning_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -400,7 +400,7 @@
         "group": "Maintenance Checks",
         "schedule": {
             "fifteen_min_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     }
@@ -416,7 +416,7 @@
         "group": "Maintenance Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -433,7 +433,7 @@
         "group": "Maintenance Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -450,7 +450,7 @@
         "group": "Maintenance Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
@@ -467,7 +467,7 @@
         "group": "ECS Checks",
         "schedule": {
             "manual_checks": {
-                "data": {
+                "all": {
                     "kwargs": {
                         "primary": true
                     },
