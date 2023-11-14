@@ -4,11 +4,11 @@ from datetime import datetime
 
 from dcicutils import ff_utils
 from dcicutils.s3_utils import s3Utils
-from magma_ff import reset_metawfr, run_metawfr, status_metawfr
-from magma_ff.create_metawfr import (
-    MetaWorkflowRunFromSampleProcessing,
-    MetaWorkflowRunFromSample,
-)
+from magma_smaht import reset_metawfr, run_metawfr, status_metawfr
+# from magma_smaht.create_metawfr import (
+#     MetaWorkflowRunFromSampleProcessing,
+#     MetaWorkflowRunFromSample,
+# )
 
 from .helpers import constants
 from .helpers import wfr_utils
@@ -478,7 +478,7 @@ def reset_spot_failed_metawfrs(connection, **kwargs):
             workflow_runs = meta_workflow_run.get("workflow_runs", [])
             for workflow_run in workflow_runs:
                 workflow_run_status = workflow_run.get("status")
-                workflow_run_jobid = workflow_run.get("jobid")
+                workflow_run_jobid = workflow_run.get("job_id")
                 workflow_run_shard = workflow_run.get("shard")
                 workflow_run_name = workflow_run.get("name")
                 if workflow_run_status == "failed":
