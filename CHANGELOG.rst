@@ -7,6 +7,15 @@ foursight-smaht
 Change Log
 ----------
 
+
+0.2.0
+=====
+
+* New Portal Reindex and Redeploy pages; foursight-core 5.1.0.
+* Update poetry to 1.4.2.
+* Update dcicutils to 8.0.0.
+
+
 0.1.0
 =====
 
