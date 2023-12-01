@@ -115,7 +115,7 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
         check.allow_action = False
         return check
     my_auth = connection.ff_keys
-    query = "/search/?status=uploading&status=upload failed" # That makes no sense to me - AV 2023-10-31
+    query = "/search/?status=uploading&status=upload failed"
     query += "&type=" + file_type
     if start_date is not None:
         query += "&date_created.from=" + start_date
