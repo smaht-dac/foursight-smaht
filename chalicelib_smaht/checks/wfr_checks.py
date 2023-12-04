@@ -4,11 +4,11 @@ from datetime import datetime
 
 from dcicutils import ff_utils
 from dcicutils.s3_utils import s3Utils
-from magma_ff import reset_metawfr, run_metawfr, status_metawfr
-from magma_ff.create_metawfr import (
-    MetaWorkflowRunFromSampleProcessing,
-    MetaWorkflowRunFromSample,
-)
+from magma_smaht import reset_metawfr, run_metawfr, status_metawfr
+# from magma_smaht.create_metawfr import (
+#     MetaWorkflowRunFromSampleProcessing,
+#     MetaWorkflowRunFromSample,
+# )
 
 from .helpers import constants
 from .helpers import wfr_utils
@@ -97,7 +97,7 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
             skipped
 
     kwargs:
-        file_type -- limit search to a file type, i.e. FileSubmitted
+        file_type -- limit search to a file type, i.e. SubmittedFile
         start_date -- limit search to files generated since date,
             formatted as YYYY-MM-DD
     """
@@ -138,9 +138,9 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
             check.brief_output.append("Did not complete due to time limitations")
             break
         # find bucket
-        if "FileProcessed" in a_file["@type"]:
+        if "OutputFile" in a_file["@type"]:
             my_bucket = out_bucket
-        else:  # covers cases of FileSubmitted, FileReference
+        else:  # covers cases of SubmittedFile, ReferenceFile
             my_bucket = raw_bucket
         # check if file is in s3
         file_id = a_file["accession"]
@@ -224,8 +224,8 @@ def md5runsmaht_start(connection, start_missing=True, start_not_switched=True, *
             target_file, key=connection.ff_keys, add_on="frame=raw"
         )
         workflow_run_common_fields = {
-            "project": target_file_properties["project"],
-            "institution": target_file_properties["institution"],
+            "submission_centers": target_file_properties["submission_centers"],
+            "consortia": target_file_properties["consortia"],
         }
         workflow_run_template = {
             "app_name": "md5",
@@ -478,36 +478,36 @@ def reset_spot_failed_metawfrs(connection, **kwargs):
             workflow_runs = meta_workflow_run.get("workflow_runs", [])
             for workflow_run in workflow_runs:
                 workflow_run_status = workflow_run.get("status")
-                workflow_run_jobid = workflow_run.get("jobid")
+                workflow_run_jobid = workflow_run.get("job_id")
                 workflow_run_shard = workflow_run.get("shard")
                 workflow_run_name = workflow_run.get("name")
                 if workflow_run_status == "failed":
                     query = (
-                        "/search/?type=WorkflowRunAwsem&field=description"
-                        "&awsem_job_id=%s" % workflow_run_jobid
+                        "/search/?type=WorkflowRun&field=description"
+                        "&job_id=%s" % workflow_run_jobid
                     )
                     search_response = ff_utils.search_metadata(
                         query, key=connection.ff_keys
                     )
                     if len(search_response) == 1:
-                        workflow_run_awsem = search_response[0]
+                        workflow_run_item = search_response[0]
                     elif len(search_response) > 1:
                         msg = (
-                            "Multiple WorkflowRunAwsem found for job ID: %s"
+                            "Multiple WorkflowRun found for job ID: %s"
                             % workflow_run_jobid
                         )
                         raise Exception(msg)
                     else:
                         msg = (
-                            "No WorkflowRunAwsem found for job ID: %s"
+                            "No WorkflowRun found for job ID: %s"
                             % workflow_run_jobid
                         )
                         raise Exception(msg)
-                    workflow_run_awsem_description = workflow_run_awsem.get(
+                    workflow_run_description = workflow_run_item.get(
                         "description"
                     )
                     spot_failure_descriptions = [
-                        spot_description in workflow_run_awsem_description
+                        spot_description in workflow_run_description
                         for spot_description in SPOT_FAILURE_DESCRIPTIONS
                     ]
                     log_bucket_spot_failure = s3_utils.does_key_exist(
@@ -762,276 +762,6 @@ def reset_failed_metawfrs(connection, **kwargs):
 #     return action
 
 
-@check_function(action="link_meta_workflow_run_output_files")
-def find_meta_workflow_runs_requiring_output_linktos(connection, **kwargs):
-    """Find completed MetaWorkflowRuns to PATCH output files to desired
-    locations.
-    """
-    check = initialize_check(
-        "find_meta_workflow_runs_requiring_output_linktos", connection
-    )
-    check.description = "Find completed MetaWorkflowRuns to PATCH their output files."
-    check.action = "link_meta_workflow_run_output_files"
-
-    meta_workflow_runs = MetaWorkflowRunsFound(connection)
-    query = (
-        "search/?type=MetaWorkflowRun&final_status=completed&field=uuid"
-        "&output_files_linked_status=No+value"
-    )
-    meta_workflow_runs.search_query(query)
-    msg = "%s MetaworkflowRun(s) found to PATCH output files" % len(
-        meta_workflow_runs.uuids
-    )
-    check.summary = msg
-    check.brief_output.append(msg)
-    check.full_output["meta_workflow_runs"] = meta_workflow_runs.uuids
-    if not meta_workflow_runs.uuids:
-        check.allow_action = False
-        check.status = constants.CHECK_PASS
-    return check
-
-
-@action_function()
-def link_meta_workflow_run_output_files(connection, **kwargs):
-    """PATCH MetaWorkflowRuns' designated output files to desired
-    locations.
-    """
-    action, check_result = initialize_action(
-        "link_meta_workflow_run_output_files", connection, kwargs
-    )
-    action.description = "PATCH MetaWorkflowRuns' output files"
-
-    success = []
-    error = []
-    meta_workflow_run_uuids = check_result.get("meta_workflow_runs", [])
-    for meta_workflow_run_uuid in meta_workflow_run_uuids:
-        successful_links = create_output_file_links(meta_workflow_run_uuid, connection)
-        if successful_links:
-            success.append(meta_workflow_run_uuid)
-        else:
-            error.append(meta_workflow_run_uuid)
-    action.output["success"] = success
-    action.output["error"] = error
-    if not error:
-        action.status = constants.ACTION_PASS
-    return action
-
-
-def create_output_file_links(meta_workflow_run_uuid, connection):
-    """For given MetaWorkflowRun, collect output files requiring PATCH,
-    attempt PATCHes, and update MetaWorkflowRun metadata per results.
-    """
-    result = True
-    output_files_to_link = {}
-    file_linkto_field = "linkto_location"
-    embed_fields = [
-        "input_samples",
-        "associated_sample_processing",
-        "workflow_runs.shard",
-        "workflow_runs.output.file.uuid",
-        "workflow_runs.output.file." + file_linkto_field,
-    ]
-    meta_workflow_run = make_embed_request(
-        meta_workflow_run_uuid, embed_fields, connection
-    )
-    workflow_runs = meta_workflow_run.get("workflow_runs", [])
-    for workflow_run in workflow_runs:
-        output_files = workflow_run.get("output", [])
-        shard = workflow_run.get("shard")
-        for output in output_files:
-            output_file = output.get("file", {})
-            output_file_linkto_field = output_file.get(file_linkto_field, [])
-            if not output_file_linkto_field:
-                continue
-            output_file_uuid = output_file.get("uuid")
-            sample_idx = int(shard.split(":")[0])
-            file_fields = {"file_uuid": output_file_uuid, "sample_idx": sample_idx}
-            for linkto_location in output_file_linkto_field:
-                add_to_dict_as_list(output_files_to_link, linkto_location, file_fields)
-    if output_files_to_link:
-        input_samples = meta_workflow_run.get("input_samples")
-        sample_processing = meta_workflow_run.get("associated_sample_processing")
-        link_errors = create_file_linktos(
-            output_files_to_link,
-            input_samples,
-            sample_processing,
-            connection=connection,
-        )
-        update_meta_workflow_run_files_linked(
-            meta_workflow_run_uuid, errors=link_errors, connection=connection
-        )
-        if link_errors:
-            result = False
-    else:
-        update_meta_workflow_run_files_linked(
-            meta_workflow_run_uuid, connection=connection
-        )
-    return result
-
-
-def create_file_linktos(
-    output_files_to_link, input_sample_uuids, sample_processing_uuid, connection=None
-):
-    """Perform PATCHes for given output files.
-
-    NOTE: File.linkto_location values are handled here; any new values
-    require updating function.
-    """
-    linkto_errors = {}
-    to_patch = {}
-    for linkto_location, files_to_link in output_files_to_link.items():
-        if linkto_location == "Sample":
-            for file_to_link in files_to_link:
-                file_uuid = file_to_link.get("file_uuid")
-                if input_sample_uuids is None:
-                    error_msg = "No input_samples available on MetaWorkflowRun"
-                    add_to_dict_as_list(linkto_errors, file_uuid, error_msg)
-                    continue
-                sample_idx = file_to_link.get("sample_idx")
-                sample_uuid = input_sample_uuids[sample_idx]
-                add_to_dict_as_list(to_patch, sample_uuid, file_uuid)
-        elif linkto_location == "SampleProcessing":
-            for file_to_link in files_to_link:
-                file_uuid = file_to_link.get("file_uuid")
-                if sample_processing_uuid is None:
-                    error_msg = (
-                        "No associated_sample_processing available on MetaWorkflowRun"
-                    )
-                    add_to_dict_as_list(linkto_errors, file_uuid, error_msg)
-                    continue
-                add_to_dict_as_list(to_patch, sample_processing_uuid, file_uuid)
-        else:
-            for file_to_link in files_to_link:
-                file_uuid = file_to_link.get("file_uuid")
-                error_msg = "File linkto_location was unexpected: %s" % linkto_location
-                add_to_dict_as_list(linkto_errors, file_uuid, error_msg)
-    for item_to_patch, files_to_patch in to_patch.items():
-        need_to_patch = False
-        item = ff_utils.get_metadata(
-            item_to_patch, key=connection.ff_keys, add_on="frame=raw&datastore=database"
-        )
-        item_processed_files = item.get("processed_files", [])
-        processed_files_to_patch = []
-        processed_files_to_patch += item_processed_files
-        for file_to_patch in files_to_patch:
-            if file_to_patch not in processed_files_to_patch:
-                processed_files_to_patch.append(file_to_patch)
-        if len(processed_files_to_patch) > len(item_processed_files):
-            need_to_patch = True
-        if need_to_patch:
-            patch_body = {"processed_files": processed_files_to_patch}
-            try:
-                ff_utils.patch_metadata(
-                    patch_body, obj_id=item_to_patch, key=connection.ff_keys
-                )
-            except Exception as error_msg:
-                for file_uuid in files_to_patch:
-                    add_to_dict_as_list(linkto_errors, file_uuid, str(error_msg))
-    return linkto_errors
-
-
-def update_meta_workflow_run_files_linked(
-    meta_workflow_run_uuid, errors=None, connection=None
-):
-    """PATCH MetaWorkflowRun metadata related to status of output file
-    PATCHes.
-    """
-    if not errors:
-        patch_body = {"output_files_linked_status": "success"}
-        ff_utils.patch_metadata(
-            patch_body, meta_workflow_run_uuid, key=connection.ff_keys
-        )
-    else:
-        output_files_linked_errors = []
-        for file_uuid, linkto_errors in errors.items():
-            output_files_linked_errors.append(
-                {"output_file": file_uuid, "errors": linkto_errors}
-            )
-        patch_body = {
-            "output_files_linked_status": "error",
-            "output_files_linked_errors": output_files_linked_errors,
-        }
-        ff_utils.patch_metadata(
-            patch_body, meta_workflow_run_uuid, key=connection.ff_keys
-        )
-
-
-@check_function(meta_workflow_runs=None, action="link_meta_workflow_run_output_files_after_error")
-def find_meta_workflow_runs_with_linkto_errors(
-    connection, meta_workflow_runs=None, **kwargs
-):
-    """Find MetaWorkflowRuns with output file linkTo creation errors."""
-    check = initialize_check("find_meta_workflow_runs_with_linkto_errors", connection)
-    check.action = "link_meta_workflow_run_output_files_after_error"
-    check.description = "Find MetaWorkflowRuns with errors creating output file linkTos"
-
-    meta_workflow_runs_found = MetaWorkflowRunsFound(connection)
-    meta_workflow_runs_not_found = []
-    if meta_workflow_runs:
-        link_status_error = []
-        meta_workflow_runs = format_kwarg_list(meta_workflow_runs)
-        found, not_found = validate_items_existence(meta_workflow_runs, connection)
-        for meta_workflow_run in found:
-            linked_status = meta_workflow_run.get("output_files_linked_status")
-            if linked_status == "error":
-                link_status_error.append(meta_workflow_run)
-        meta_workflow_runs_found.add_items(link_status_error)
-        meta_workflow_runs_not_found += not_found
-    else:
-        query = (
-            "search/?type=MetaWorkflowRun&field=uuid&output_files_linked_status=error"
-        )
-        meta_workflow_runs_found.search_query(query)
-    msg = "%s MetaWorkflowRun(s) found with errors for output file links" % len(
-        meta_workflow_runs_found.uuids
-    )
-    check.summary = msg
-    check.brief_output.append(msg)
-    check.full_output["meta_workflow_runs"] = meta_workflow_runs_found.uuids
-    if not meta_workflow_runs_found.uuids:
-        check.allow_action = False
-    if meta_workflow_runs_not_found:
-        msg = "%s MetaWorkflowRun(s) could not be found" % len(
-            meta_workflow_runs_not_found
-        )
-        check.brief_output.append(msg)
-        check.full_output["not_found"] = meta_workflow_runs_not_found
-    if not meta_workflow_runs_found.uuids and not meta_workflow_runs_not_found:
-        check.status = constants.CHECK_PASS
-    return check
-
-
-@action_function()
-def link_meta_workflow_run_output_files_after_error(connection, **kwargs):
-    """Attempt to PATCH output files to desired locations on a
-    MetaWorkflowRun with prior errors.
-    """
-    action, check_result = initialize_action(
-        "link_meta_workflow_run_output_files_after_error", connection, kwargs
-    )
-    action.description = "PATCH MetaWorkflowRuns' output files after prior error"
-
-    success = []
-    error = []
-    meta_workflow_run_uuids = check_result.get("meta_workflow_runs", [])
-    for meta_workflow_run_uuid in meta_workflow_run_uuids:
-        successful_links = create_output_file_links(meta_workflow_run_uuid, connection)
-        if successful_links:
-            ff_utils.delete_field(
-                meta_workflow_run_uuid,
-                "output_files_linked_errors",
-                key=connection.ff_keys,
-            )
-            success.append(meta_workflow_run_uuid)
-        else:
-            error.append(meta_workflow_run_uuid)
-    action.output["success"] = success
-    action.output["error"] = error
-    if not error:
-        action.status = constants.ACTION_PASS
-    return action
-
-
 @check_function(meta_workflow_runs=None, meta_workflows=None, action="kill_meta_workflow_runs")
 def find_meta_workflow_runs_to_kill(
     connection, meta_workflow_runs=None, meta_workflows=None, **kwargs
@@ -1108,261 +838,6 @@ def kill_meta_workflow_runs(connection, **kwargs):
     return action
 
 
-@check_function(
-    meta_workflow="",
-    cases=None,
-    sample_processings=None,
-    action="create_meta_workflow_runs_for_items"
-)
-def find_sample_processing_for_meta_workflow(
-    connection,
-    meta_workflow="",
-    cases=None,
-    sample_processings=None,
-    **kwargs,
-):
-    """Find SampleProcessing items and MetaWorkflow to create new
-    MetaWorkflowRun.
-    """
-    check = initialize_check("find_sample_processing_for_meta_workflow", connection)
-    check.description = (
-        "Find SampleProcessing items and MetaWorkflow to create new MetaWorkflowRuns"
-    )
-    check.action = "create_meta_workflow_runs_for_items"
-
-    sample_processings_for_meta_workflow = []
-    if meta_workflow:
-        meta_workflow_found, _ = validate_items_existence(meta_workflow, connection)
-        if meta_workflow_found:
-            meta_workflow_properties = meta_workflow_found[0]  # Only 1 MWF expected
-            meta_workflow_name = meta_workflow_properties.get("name")
-            meta_workflow_uuid = meta_workflow_properties.get("uuid")
-            msg = "MetaWorkflow found: %s" % meta_workflow_name
-            check.brief_output.append(msg)
-            check.full_output["meta_workflow"] = meta_workflow_uuid
-        else:
-            msg = "MetaWorkflow not found: %s" % meta_workflow
-            check.brief_output.append(msg)
-    if cases:
-        cases_found = []
-        cases_without_sample_processing = []
-        cases = format_kwarg_list(cases)
-        found, cases_not_found = validate_items_existence(cases, connection)
-        for case in found:
-            sample_processing = case.get("sample_processing")
-            case_uuid = case.get("uuid")
-            cases_found.append(case_uuid)
-            if sample_processing:
-                sample_processings_for_meta_workflow.append(sample_processing)
-            else:
-                cases_without_sample_processing.append(case_uuid)
-        msg = "%s Case(s) found" % len(cases_found)
-        check.brief_output.append(msg)
-        check.full_output["cases_found"] = cases_found
-        if cases_not_found:
-            msg = "%s Case(s) not found" % len(cases_not_found)
-            check.brief_output.append(msg)
-            check.full_output["cases_not_found"] = cases_not_found
-        if cases_without_sample_processing:
-            msg = "%s Case(s) lacked a SampleProcessing" % len(
-                cases_without_sample_processing
-            )
-            check.brief_output.append(msg)
-            check.full_output[
-                "cases_without_sample_processing"
-            ] = cases_without_sample_processing
-    if sample_processings:
-        sample_processings_found = []
-        sample_processings = format_kwarg_list(sample_processings)
-        found, not_found = validate_items_existence(sample_processings, connection)
-        for sample_processing in found:
-            sample_processings_found.append(sample_processing.get("uuid"))
-        sample_processings_for_meta_workflow += sample_processings_found
-        msg = "%s SampleProcessing(s) were found" % len(sample_processings_found)
-        check.brief_output.append(msg)
-        check.full_output["sample_processings_found"] = sample_processings_found
-        if not_found:
-            msg = "%s SampleProcessing(s) not found" % len(not_found)
-            check.brief_output.append(msg)
-            check.full_output["sample_processings_not_found"] = not_found
-    sample_processings_for_meta_workflow = list(
-        set(sample_processings_for_meta_workflow)
-    )
-    msg = "%s SampleProcessing(s) found to use for MetaWorkflowRun creation" % len(
-        sample_processings_for_meta_workflow
-    )
-    check.brief_output.append(msg)
-    check.full_output[
-        "sample_processing_for_meta_workflow"
-    ] = sample_processings_for_meta_workflow
-    if sample_processings_for_meta_workflow and meta_workflow:
-        msg = "Action will create %s MetaWorkflowRun(s) for MetaWorkflow %s" % (
-            len(sample_processings_for_meta_workflow),
-            meta_workflow,
-        )
-        check.brief_output.append(msg)
-        check.summary = msg
-    else:
-        msg = "Could not find information required to create MetaWorkflowRuns"
-        check.brief_output.append(msg)
-        check.summary = msg
-        check.allow_action = False
-    return check
-
-
-@action_function()
-def create_meta_workflow_runs_for_items(connection, **kwargs):
-    """Create MetaWorkflowRuns."""
-    action, check_result = initialize_action(
-        "create_meta_workflow_runs_for_items", connection, kwargs
-    )
-    action.description = "Create MetaWorkflowRuns"
-
-    sample_success = []
-    sample_error = {}
-    sample_processing_success = []
-    sample_processing_error = {}
-    meta_workflow_identifier = check_result.get("meta_workflow")
-    sample_processings = check_result.get("sample_processing_for_meta_workflow", [])
-    samples = check_result.get("samples_for_meta_workflow", [])
-    if sample_processings:
-        for sample_processing in sample_processings:
-            try:
-                MetaWorkflowRunFromSampleProcessing(
-                    sample_processing, meta_workflow_identifier, connection.ff_keys
-                ).post_and_patch()
-                sample_processing_success.append(sample_processing)
-            except Exception as error_msg:
-                sample_processing_error[sample_processing] = str(error_msg)
-        action.output[
-            "sample_processings_with_meta_workflow_runs"
-        ] = sample_processing_success
-        action.output["sample_processings_with_errors"] = sample_processing_error
-    if samples:
-        for sample in samples:
-            try:
-                MetaWorkflowRunFromSample(
-                    sample, meta_workflow_identifier, connection.ff_keys
-                ).post_and_patch()
-                sample_success.append(sample)
-            except Exception as error_msg:
-                sample_error[sample] = str(error_msg)
-        action.output["samples_with_meta_workflow_runs"] = sample_success
-        action.output["samples_with_errors"] = sample_error
-    if not sample_error and not sample_processing_error:
-        action.status = constants.ACTION_PASS
-    return action
-
-
-@check_function(
-    meta_workflow="",
-    cases=None,
-    sample_processings=None,
-    samples=None,
-    action="create_meta_workflow_runs_for_items"
-)
-def find_sample_for_meta_workflow(
-    connection,
-    meta_workflow="",
-    cases=None,
-    sample_processings=None,
-    samples=None,
-    **kwargs,
-):
-    """Find Sample(s) and MetaWorkflow to create new
-    MetaWorkflowRun(s).
-    """
-    check = initialize_check("find_sample_for_meta_workflow", connection)
-    check.description = "Find Samples and MetaWorkflow to create new MetaWorkflowRuns"
-    check.action = "create_meta_workflow_runs_for_items"
-
-    samples_for_meta_workflow = set()
-    sample_processings_from_cases = set()
-    samples_from_sample_processings = set()
-    if meta_workflow:
-        meta_workflow_found, _ = validate_items_existence(meta_workflow, connection)
-        if meta_workflow_found:
-            meta_workflow_properties = meta_workflow_found[0]  # Only 1 MWF expected
-            meta_workflow_name = meta_workflow_properties.get("name")
-            meta_workflow_uuid = meta_workflow_properties.get("uuid")
-            msg = "MetaWorkflow found: %s" % meta_workflow_name
-            check.brief_output.append(msg)
-            check.full_output["meta_workflow"] = meta_workflow_uuid
-        else:
-            msg = "MetaWorkflow not found: %s" % meta_workflow
-            check.brief_output.append(msg)
-    if cases:
-        cases_found = []
-        cases_without_sample_processing = []
-        cases = format_kwarg_list(cases)
-        found, cases_not_found = validate_items_existence(cases, connection)
-        for case in found:
-            sample_processing = case.get("sample_processing")
-            case_uuid = case.get("uuid")
-            cases_found.append(case_uuid)
-            if sample_processing:
-                sample_processings_from_cases.add(sample_processing)
-            else:
-                cases_without_sample_processing.append(case_uuid)
-        msg = "%s Case(s) found" % len(cases_found)
-        check.brief_output.append(msg)
-        check.full_output["cases_found"] = cases_found
-        if cases_not_found:
-            msg = "%s Case(s) not found" % len(cases_not_found)
-            check.brief_output.append(msg)
-            check.full_output["cases_not_found"] = cases_not_found
-        if cases_without_sample_processing:
-            msg = "%s Case(s) lacked a SampleProcessing" % len(
-                cases_without_sample_processing
-            )
-            check.brief_output.append(msg)
-            check.full_output[
-                "cases_without_sample_processing"
-            ] = cases_without_sample_processing
-    if sample_processings or sample_processings_from_cases:
-        sample_processings_found = []
-        sample_processings = format_kwarg_list(sample_processings)
-        sample_processings |= sample_processings_from_cases
-        found, not_found = validate_items_existence(sample_processings, connection)
-        for sample_processing in found:
-            sample_processings_found.append(sample_processing.get("uuid"))
-            for sample in sample_processing.get("samples", []):
-                samples_from_sample_processings.add(sample)
-        msg = "%s SampleProcessing(s) were found" % len(sample_processings_found)
-        check.brief_output.append(msg)
-        check.full_output["sample_processings_found"] = sample_processings_found
-        if not_found:
-            msg = "%s SampleProcessing(s) not found" % len(not_found)
-            check.brief_output.append(msg)
-            check.full_output["sample_processings_not_found"] = not_found
-    if samples or samples_from_sample_processings:
-        samples = format_kwarg_list(samples)
-        samples |= samples_from_sample_processings
-        found, not_found = validate_items_existence(samples, connection)
-        for sample in found:
-            samples_for_meta_workflow.add(sample.get("uuid"))
-        if not_found:
-            msg = "%s Sample(s) not found" % len(not_found)
-            check.brief_output.append(msg)
-            check.full_output["samples_not_found"] = not_found
-    msg = "%s Sample(s) found to use for MetaWorkflowRun creation" % len(
-        samples_for_meta_workflow
-    )
-    check.brief_output.append(msg)
-    check.full_output["samples_for_meta_workflow"] = list(samples_for_meta_workflow)
-    if samples_for_meta_workflow and meta_workflow:
-        msg = "Action will create %s MetaWorkflowRun(s) for MetaWorkflow %s" % (
-            len(samples_for_meta_workflow),
-            meta_workflow,
-        )
-        check.brief_output.append(msg)
-        check.summary = msg
-    else:
-        msg = "Could not find information required to create MetaWorkflowRuns"
-        check.brief_output.append(msg)
-        check.summary = msg
-        check.allow_action = False
-    return check
 
 
 @check_function(meta_workflow_runs=None, action="ignore_quality_metric_failure_for_meta_workflow_run")
