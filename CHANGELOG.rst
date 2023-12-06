@@ -8,6 +8,16 @@ Change Log
 ----------
 
 
+0.4.0
+=====
+* Minor UI fix to Ingestion page (foursight-core).
+
+
+0.3.0
+=====
+* ?
+
+
 0.2.0
 =====
 
