@@ -8,6 +8,11 @@ Change Log
 ----------
 
 
+0.5.0
+=====
+* Added update of a gitinfo.json file in GitHub Actions (.github/workflows/main-publish.yml).
+
+
 0.4.0
 =====
 * Minor UI fix to Ingestion page (foursight-core).
