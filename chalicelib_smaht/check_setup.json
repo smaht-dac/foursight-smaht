@@ -34,6 +34,23 @@
             "staging"
         ]
     },
+    "sync_google_analytics_data": {
+        "title": "Sync Google Analytics",
+        "group": "Metadata checks",
+        "schedule": {
+            "morning_checks_3": {
+                "data": {
+                    "dependencies": [],
+                    "kwargs": {
+                        "primary": true
+                    }
+                }
+            }
+        },
+        "display": [
+            "staging"
+        ]
+    },
     "indexing_records": {
         "title": "Indexing records",
         "group": "Elasticsearch Checks",
