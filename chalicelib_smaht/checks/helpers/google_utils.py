@@ -97,7 +97,7 @@ def report(*args, disabled=False):
 
 class GoogleAPISyncer:
     """
-    Handles authentication and common requests against Google Data APIs using `fourfront-ec2-account` (a service_account).
+    Handles authentication and common requests against Google Data APIs using `smaht-dac` (a service_account).
     If no access keys are provided, initiates a connection to production.
 
     Interfaces with Google services using Google Analytics Data API v1 (GA4).
@@ -108,7 +108,7 @@ class GoogleAPISyncer:
         ff_access_keys      - Optional. A dictionary with a 'key', 'secret', and 'server', identifying admin account access keys and FF server to POST to.
         google_api_key      - Optional. Override default API key for accessing Google.
         s3UtilsInstance     - Optional. Provide an S3Utils class instance connected to a bucket with a proper Google API key (if none supplied otherwise).
-                              If not supplied, a new S3 connection will be created to the Fourfront production bucket.
+                              If not supplied, a new S3 connection will be created to the SMaHT production bucket.
         extra_config        - Additional Google API config, e.g. OAuth2 scopes and Analytics View ID. Shouldn't need to set this.
     """
 
@@ -120,7 +120,7 @@ class GoogleAPISyncer:
             assert json_api_key is not None
             assert isinstance(json_api_key, dict)
             assert json_api_key['type'] == 'service_account'
-            assert json_api_key["project_id"].startswith("fourfront-")
+            assert json_api_key["project_id"].startswith("smaht-")
             for dict_key in ['private_key_id', 'private_key', 'client_email', 'client_id', 'auth_uri', 'client_x509_cert_url']:
                 assert json_api_key[dict_key]
         except:
@@ -449,7 +449,7 @@ class GoogleAPISyncer:
 
         def fill_with_tracking_items(self, increment):
             '''
-            This method is meant to be run periodically to fetch/sync Google Analytics data into Fourfront database.
+            This method is meant to be run periodically to fetch/sync Google Analytics data into SMaHT database.
 
             Adds 1 TrackingItem for each day to represent analytics data for said day.
             Fill up from latest already-existing TrackingItem until day before current day (to get full day of data).
@@ -557,7 +557,7 @@ class GoogleAPISyncer:
             '''
             Wraps `report_data` in a TrackingItem Item.
 
-            If `do_post_request` is True, will also POST the Item into fourfront database, according to the access_keys
+            If `do_post_request` is True, will also POST the Item into smaht database, according to the access_keys
             that the class was instantiated with.
 
             If `report_data` is not supplied or set to None, will run query_reports() to get all reports defined as are defined in instance methods.
@@ -1034,7 +1034,7 @@ if __name__ == "__main__":
     RED = "\033[91m"
     END_COLOR = "\033[0m"
 
-    parser = argparse.ArgumentParser(description='Supply a fourfront key and key secret from your profile page.')
+    parser = argparse.ArgumentParser(description='Supply a smaht key and key secret from your profile page.')
     parser.add_argument('key', metavar='access_key', type=str, help='Access Key, as obtained from 4DN user profile page.')
     parser.add_argument('secret', metavar='access_key_secret', type=str, help='Access Key Secret, as obtained from 4DN user profile page.')
     parser.add_argument('--server', type=str, default="http://localhost:8000", help='Server to connect to, including protocol and port.')
