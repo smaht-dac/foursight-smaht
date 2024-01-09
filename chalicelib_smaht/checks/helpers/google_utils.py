@@ -32,7 +32,8 @@ DEFAULT_GOOGLE_API_CONFIG = {
         'https://www.googleapis.com/auth/spreadsheets'          # View and manage your spreadsheets in Google Drive
 
     ],
-    "analytics_property_id" : '421559857',                  # SMAHT - Localhost, //TODO: Replace with prod. property id
+    # "analytics_property_id" : '421559857',                  # SMAHT - Localhost
+    "analytics_property_id" : '422474776',                  # SMAHT - Production
     "analytics_page_size" : 10000,
     "analytics_timezone" : "US/Eastern",                    # 4DN Analytics account is setup for EST time zone.
     "analytics_to_tracking_item_fields_mapping": {          # For backwards-compatibility, we map the new GA4 fields to existing Tracking Item fields
