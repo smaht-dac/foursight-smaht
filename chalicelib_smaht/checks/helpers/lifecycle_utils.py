@@ -80,7 +80,6 @@ def check_file_lifecycle_status(
 
     search_query_base = (
         "/search/?type=File"
-        "&project.lifecycle_management_active=true"
         "&status%21=deleted"
         "&status%21=archived"
         "&status%21=uploading"
@@ -103,30 +102,17 @@ def check_file_lifecycle_status(
     files_with_issues = []
     logs = []
 
-    # This dict will contain all the lifecycle policies per project that are relevant
-    # for the current set of files. "project.lifecycle_policy" is not embedded in the File
-    # item and we want to retrieve the project metadata only once for each project.
-    lifecycle_policies_by_project = {}
+    # Lifecycle policy that will be applied. Currently we have only one.
+    lifecycle_policy = DEFAULT_LIFECYCLE_POLICY
 
     for file in all_files:
         file_uuid = file["uuid"]
 
-        # Get the correct lifecycle policy - load it from the metadata only once
-        project_uuid = file["project"]["uuid"]
-        if project_uuid not in lifecycle_policies_by_project:
-            project = ff_utils.get_metadata(project_uuid, key=my_auth)
-            if "lifecycle_policy" in project:
-                lifecycle_policies_by_project[project_uuid] = project[
-                    "lifecycle_policy"
-                ]
-            else:
-                lifecycle_policies_by_project[project_uuid] = DEFAULT_LIFECYCLE_POLICY
-
-        lifecycle_policy = lifecycle_policies_by_project[project_uuid]
-
         file_lifecycle_category = file[
             "s3_lifecycle_category"
         ]  # e.g. "long_term_archive"
+
+        # In theory this should never happen, since s3_lifecycle_category is an enum in the portal schema
         if file_lifecycle_category not in lifecycle_policy:
             check_result["status"] = "WARN"
             check_result[
@@ -191,7 +177,6 @@ def check_deleted_files_lifecycle_status(num_files_to_check, check_after, my_aut
 
     search_query = (
         "/search/?type=File"
-        "&project.lifecycle_management_active=true"
         f"&s3_lifecycle_status%21={DELETED}"
         f"&last_modified.date_modified.to={threshold_date}"
         f"&status={DELETED}"
