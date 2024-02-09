@@ -7,6 +7,10 @@ foursight-smaht
 Change Log
 ----------
 
+0.5.0
+=====
+* Google Analytics checks added
+
 
 0.4.0
 =====
