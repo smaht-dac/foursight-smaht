@@ -232,21 +232,34 @@ class GoogleAPISyncer:
                         r_item['ga:productName'] = r_item['customEvent:name']
                         del r_item['customEvent:name']
                         file_item_type = r_item['customEvent:file_classification'].split('/', 2)[1]
-                        str_file_item_type = re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', file_item_type)
-                        r_item['ga:productSku'] = '/{}s-{}/{}/'.format(str_file_item_type[0].lower(), str_file_item_type[1].lower(), r_item['ga:productName'].split('.')[0])
+                        file_url = extract_name_and_uuid(r_item['linkUrl'])
+                        r_item['ga:productSku'] = file_url or '/{}/'.format(r_item['ga:productName'].split('.')[0])
                         r_item['ga:productCategoryLevel2'] = file_item_type
                         del r_item['customEvent:file_classification']
+
                 elif report_key_name == 'views_by_file':
                     for r_item in report_items:
                         file_item_types = r_item['itemCategory'].split('/', 2)
                         if(len(file_item_types) > 1):
                             r_item['ga:productCategoryLevel2'] = file_item_types[1]
                         del r_item['itemCategory']
+
                 elif report_key_name == 'file_downloads_by_experiment_type':
                     for r_item in report_items:
                         if "ga:dimension5" in r_item and r_item["ga:dimension5"] == '(not set)':
                              r_item["ga:dimension5"] = "None"
 
+            def extract_name_and_uuid(url):
+                ''' try to extract e.g. "/variant-calls/abcdefgh-abcde-40b5-945f-b2f924a1707b/" from 
+                    "https://xyz.smaht.org/variant-calls/abcdefgh-abcde-40b5-945f-b2f924a1707b/@@download/SMAVCABCDEFG.vc"
+                '''
+                pattern = r"(/[a-zA-Z-]+/[a-f0-9-]+\/)@@download/"
+                match = re.search(pattern, url)
+
+                if match:
+                    return match.group(1)
+                else:
+                    return None                 
 
             def report_to_json_items(report):
                 # [(0, "ga:productName"), (1, "ga:productSku"), ...]
@@ -318,14 +331,10 @@ class GoogleAPISyncer:
                 "date_increment" : date_increment
             }
 
-
-
         def __init__(self, syncer_instance):
             _NestedGoogleServiceAPI.__init__(self, syncer_instance)
             self.property_id = self.owner.extra_config.get('analytics_property_id', DEFAULT_GOOGLE_API_CONFIG['analytics_property_id'])
             self._api =  BetaAnalyticsDataClient(credentials=self.owner.credentials) #build('analyticsreporting', 'v4', credentials=self.owner.credentials, cache_discovery=False)
-
-
 
         def get_report_provider_method_names(self):
             """
@@ -338,8 +347,6 @@ class GoogleAPISyncer:
                 if method_instance and getattr(method_instance, 'is_report_provider', False):
                     report_requests.append(method_name)
             return report_requests
-
-
 
         def query_reports(self, report_requests=None, **kwargs):
             """
@@ -420,8 +427,6 @@ class GoogleAPISyncer:
                 date_increment=kwargs.get('increment')
             )
 
-
-
         def get_latest_tracking_item_date(self, increment="daily"):
             """
             Queries '/search/?type=TrackingItem&sort=-google_analytics.for_date&&google_analytics.date_increment=...'
@@ -445,8 +450,6 @@ class GoogleAPISyncer:
             # TODO: Use date.fromisoformat() once we're on Python 3.7
             year, month, day = iso_date.split('-', 2) # In python, months are indexed from 1 <= month <= 12, not 0 <= month <= 11 like in JS.
             return date(int(year), int(month), int(day))
-
-
 
         def fill_with_tracking_items(self, increment):
             '''
@@ -493,7 +496,6 @@ class GoogleAPISyncer:
                         year_to_fill_from += 1
                     date_to_fill_from = date(year_to_fill_from, month_to_fill_from, 1)
 
-
             counter = 0
             created_list = []
 
@@ -517,8 +519,6 @@ class GoogleAPISyncer:
                     created_list.append(response['uuid'])
                     print('Created ' + str(counter) + ' TrackingItems so far.', date_to_fill_from)
                     date_to_fill_from += timedelta(days=1)
-
-
             elif increment == 'monthly':
                 end_year = today.year
                 end_month = today.month - 1
@@ -551,8 +551,6 @@ class GoogleAPISyncer:
                         fill_year += 1
 
             return { 'created' : created_list, 'count' : counter }
-
-
 
         def create_tracking_item(self, report_data=None, do_post_request=False, **kwargs):
             '''
@@ -616,8 +614,6 @@ class GoogleAPISyncer:
         ################################
         ### Item Views & Impressions ###
         ################################
-
-
         @report
         def views_by_file(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
@@ -663,46 +659,6 @@ class GoogleAPISyncer:
                 return self.query_reports([report_request_json])
             return report_request_json
 
-
-        @report
-        def views_by_experiment_set(self, start_date='yesterday', end_date='yesterday', execute=True):
-            report_request_json = {
-                'date_ranges' : [{ 'start_date' : start_date, 'end_date' : end_date }],
-                'metrics': [
-                    { 'name': 'itemsViewed' },
-                    { 'name': 'itemsClickedInList' },
-                    { 'name': 'itemsViewedInList' }
-                ],
-                'dimensions': [
-                    { 'name': 'itemName' },
-                    { 'name': 'itemId' },
-                    { 'name': 'itemCategory2' },
-                    { 'name': 'itemBrand' }
-                ],
-                'order_bys' : [
-                    { 'metric' : { 'metric_name': 'itemsViewed' }, 'desc': True }
-                ],
-                'dimension_filter' : {
-                    'and_group': {
-                        'expressions': [
-                            {
-                                "filter" : { 
-                                    'field_name' : "itemCategory",
-                                    'string_filter': {
-                                        "value" : "ExperimentSet",
-                                        "match_type" : "BEGINS_WITH" 
-                                    } 
-                                }
-                        }]
-                    }
-                },
-                'limit' : 100
-            }
-            if execute:
-                return self.query_reports([report_request_json])
-            return report_request_json
-
-
         @report(disabled=True)
         def views_by_other_item(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
@@ -725,12 +681,6 @@ class GoogleAPISyncer:
                             {
                                 "not" : True,
                                 "dimensionName" : "ga:productCategoryLevel1",
-                                "expressions" : ["ExperimentSet"],
-                                "operator" : "PARTIAL"
-                            },
-                            {
-                                "not" : True,
-                                "dimensionName" : "ga:productCategoryLevel1",
                                 "expressions" : ["File"],
                                 "operator" : "EXACT"
                             }
@@ -742,14 +692,10 @@ class GoogleAPISyncer:
             if execute:
                 return self.query_reports([report_request_json])
             return report_request_json
-
-
-
+        
         ################################
         ####### Search Analytics #######
         ################################
-
-
         @report(disabled=True)
         def search_search_queries(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
@@ -779,7 +725,6 @@ class GoogleAPISyncer:
                 return self.query_reports([report_request_json])
             return report_request_json
 
-
         @report(disabled=True)
         def browse_search_queries(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
@@ -808,7 +753,6 @@ class GoogleAPISyncer:
             if execute:
                 return self.query_reports([report_request_json])
             return report_request_json
-
 
         @report
         def fields_faceted(self, start_date='yesterday', end_date='yesterday', execute=True):
@@ -847,14 +791,10 @@ class GoogleAPISyncer:
                 return self.query_reports([report_request_json])
             return report_request_json
 
-
-
         #################################
         #### File Download Analytics ####
         #################################
-
         # N.B. Some file download metrics are bundled into `views_by_file`
-
         def file_download_base_request_json(self, start_date='yesterday', end_date='yesterday'):
             '''Helper func for DRYness'''
             return {
@@ -944,7 +884,8 @@ class GoogleAPISyncer:
                 { 'name': 'customEvent:name' },
                 { 'name': 'customEvent:lab' },
                 { 'name': 'customEvent:file_classification' },
-                { 'name': 'customEvent:file_type' }
+                { 'name': 'customEvent:file_type' },
+                { 'name': 'linkUrl' }
             ]
             report_request_json["limit"] = 100
             if execute:
@@ -954,8 +895,6 @@ class GoogleAPISyncer:
         ##############################################
         #### Metadata.tsv File Download Analytics ####
         ##############################################
-
-
         @report
         def metadata_tsv_by_country(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
@@ -991,8 +930,6 @@ class GoogleAPISyncer:
             return report_request_json
 
 
-
-
     class SheetsAPI(_NestedGoogleServiceAPI):
         '''
         Use this sub-class to help query, read, edit, and analyze spreadsheet data, which will be returned in form of multi-dimensional JSON array.
@@ -1000,8 +937,6 @@ class GoogleAPISyncer:
         TODO: Implement
         '''
         pass
-
-
 
 
     class DocsAPI(_NestedGoogleServiceAPI):
@@ -1013,10 +948,7 @@ class GoogleAPISyncer:
         pass
 
 
-
-
 ######### CODE TO TEST THE ABOVE #########
-
 '''
 The following is code to test the above class(es).
 Run this file in interactive mode and continue on:
@@ -1024,8 +956,6 @@ Run this file in interactive mode and continue on:
 > python3 -i google_utils.py
 
 '''
-
-
 if __name__ == "__main__":
     import sys
     import os
