@@ -244,7 +244,7 @@ class GoogleAPISyncer:
                             r_item['ga:productCategoryLevel2'] = file_item_types[1]
                         del r_item['itemCategory']
 
-                elif report_key_name == 'file_downloads_by_experiment_type':
+                elif report_key_name == 'file_downloads_by_assay_type':
                     for r_item in report_items:
                         if "ga:dimension5" in r_item and r_item["ga:dimension5"] == '(not set)':
                              r_item["ga:dimension5"] = "None"
@@ -860,7 +860,7 @@ class GoogleAPISyncer:
             return report_request_json
 
         @report
-        def file_downloads_by_experiment_type(self, start_date='yesterday', end_date='yesterday', execute=True):
+        def file_downloads_by_assay_type(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = self.file_download_base_request_json(start_date, end_date)
             report_request_json["dimensions"] = [
                 { "name" : 'customEvent:experiment_type' }
