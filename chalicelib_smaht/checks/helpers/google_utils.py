@@ -3,25 +3,18 @@ NOTICE: THIS FILE (and google client library dependency) IS TEMPORARY AND WILL B
 """
 
 import inspect
-from datetime import (
-    date,
-    datetime,
-    timedelta
-)
 import pytz
+import re
+
+from datetime import date, datetime, timedelta
 from types import FunctionType
 from calendar import monthrange
 from collections import OrderedDict
 from google.oauth2.service_account import Credentials
 from dcicutils import ff_utils, s3_utils
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
-from google.analytics.data_v1beta.types import (
-    RunReportRequest,
-    BatchRunReportsRequest
-)
-import re
-
-
+from google.analytics.data_v1beta.types import RunReportRequest, BatchRunReportsRequest
+from dcicutils.misc_utils import PRINT
 
 
 DEFAULT_GOOGLE_API_CONFIG = {
@@ -503,7 +496,7 @@ class GoogleAPISyncer:
             if increment == 'daily':
                 end_date = today - timedelta(days=1)
 
-                print("Filling daily items from", date_to_fill_from, "to", end_date)
+                PRINT("Filling daily items from", date_to_fill_from, "to", end_date)
 
                 if date_to_fill_from > end_date:
                     return { 'created' : created_list, 'count' : counter }
@@ -518,7 +511,7 @@ class GoogleAPISyncer:
                     )
                     counter += 1
                     created_list.append(response['uuid'])
-                    print('Created ' + str(counter) + ' TrackingItems so far.', date_to_fill_from)
+                    PRINT('Created ' + str(counter) + ' TrackingItems so far.', date_to_fill_from)
                     date_to_fill_from += timedelta(days=1)
             elif increment == 'monthly':
                 end_year = today.year
@@ -529,7 +522,7 @@ class GoogleAPISyncer:
                     end_year -= 1
                     end_month += 12
 
-                print("Filling monthly items from", date_to_fill_from, "to", str(end_year) + "-" + str(end_month))
+                PRINT("Filling monthly items from", date_to_fill_from, "to", str(end_year) + "-" + str(end_month))
 
                 if fill_year > end_year and fill_month > end_month:
                     return { 'created' : created_list, 'count' : counter }
@@ -545,7 +538,7 @@ class GoogleAPISyncer:
                     )
                     counter += 1
                     created_list.append(response['uuid'])
-                    print('Created ' + str(counter) + ' TrackingItems so far.', str(fill_year) + "-" + str(fill_month))
+                    PRINT('Created ' + str(counter) + ' TrackingItems so far.', str(fill_year) + "-" + str(fill_month))
                     fill_month += 1
                     if fill_month > 12:
                         fill_month -= 12
@@ -892,7 +885,7 @@ if __name__ == "__main__":
     }
 
     google = GoogleAPISyncer(ak)
-    print(YELLOW + "Checking last tracking item date on " + args.server + "...\n")
+    PRINT(YELLOW + "Checking last tracking item date on " + args.server + "...\n")
     last_tracking_item_date_daily = google.analytics.get_latest_tracking_item_date()
     last_tracking_item_date_monthly = google.analytics.get_latest_tracking_item_date("monthly")
     if not last_tracking_item_date_daily or not last_tracking_item_date_monthly:
@@ -906,11 +899,11 @@ if __name__ == "__main__":
             else "daily" if not last_tracking_item_date_daily
             else "monthly"
         )
-        print(
+        PRINT(
             YELLOW + "No \033[4m" + missing_items + "\033[24m tracking items currently exist on this server.",
             "\nRun the following to fill:", "\033[2m", commands, "\033[22m" + END_COLOR)
     else:
-        print(
+        PRINT(
             GREEN + "Most recent tracking items are from",
             last_tracking_item_date_daily, '(daily)',
             last_tracking_item_date_monthly, '(monthly)',
@@ -940,7 +933,7 @@ Instead, \033[1mmanually compare results of output vs data shown in analytics UI
     <<< Created 60 TrackingItems so far.
     '''
 
-    print(nextmsg)
+    PRINT(nextmsg)
 
 
 
