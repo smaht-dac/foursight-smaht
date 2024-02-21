@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.6.0
+=====
+* Google Analytics checks added
+
+
 0.5.0
 =====
 * Add lifecycle management checks
