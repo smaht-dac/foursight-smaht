@@ -647,7 +647,7 @@ class GoogleAPISyncer:
                                     'field_name' : "itemCategory", 
                                     'string_filter': { 
                                         "value" : "File", 
-                                        "match_type" : "BEGINS_WITH" 
+                                        "match_type" : "EXACT" 
                                     } 
                                 }
                         }]
