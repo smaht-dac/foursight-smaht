@@ -68,11 +68,6 @@ def morning_checks(event):
 
 
 @schedule(SCHEDULES, stage=STAGE, disabled_stages=DISABLED_STAGES)
-def morning_checks_2(event):
-    app.core.queue_scheduled_checks('all', 'morning_checks_2')
-
-
-@schedule(SCHEDULES, stage=STAGE, disabled_stages=DISABLED_STAGES)
 def morning_checks_3(event):
     app.core.queue_scheduled_checks('all', 'morning_checks_3')
 
