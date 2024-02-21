@@ -33,6 +33,7 @@ DEFAULT_GOOGLE_API_CONFIG = {
 
     ],
     # "analytics_property_id" : '421559857',                  # SMAHT - Localhost
+    # "analytics_property_id" : '422485570',                  # SMAHT - Wolf
     "analytics_property_id" : '422474776',                  # SMAHT - Production
     "analytics_page_size" : 10000,
     "analytics_timezone" : "US/Eastern",                    # 4DN Analytics account is setup for EST time zone.
@@ -659,101 +660,9 @@ class GoogleAPISyncer:
                 return self.query_reports([report_request_json])
             return report_request_json
 
-        @report(disabled=True)
-        def views_by_other_item(self, start_date='yesterday', end_date='yesterday', execute=True):
-            report_request_json = {
-                'date_ranges' : [{ 'start_date' : start_date, 'end_date' : end_date }],
-                'dimensions': [
-                    { 'name': 'ga:productName' },
-                    { 'name': 'ga:productSku' },
-                    { 'name': 'ga:productCategoryHierarchy' },
-                    { 'name': 'ga:productBrand' }
-                ],
-                'metrics': [
-                    { 'expression': 'ga:productDetailViews', 'formattingType' : 'INTEGER' },
-                    { 'expression': 'ga:productListClicks', 'formattingType' : 'INTEGER' },
-                    { 'expression': 'ga:productListViews', 'formattingType' : 'INTEGER' }
-                ],
-                "orderBys" : [{ 'fieldName' : 'ga:productDetailViews', 'sortOrder' : 'descending' }],
-                'dimensionFilterClauses' : [
-                    {
-                        "filters" : [
-                            {
-                                "not" : True,
-                                "dimensionName" : "ga:productCategoryLevel1",
-                                "expressions" : ["File"],
-                                "operator" : "EXACT"
-                            }
-                        ]
-                    }
-                ],
-                'limit' : 20
-            }
-            if execute:
-                return self.query_reports([report_request_json])
-            return report_request_json
-        
         ################################
         ####### Search Analytics #######
         ################################
-        @report(disabled=True)
-        def search_search_queries(self, start_date='yesterday', end_date='yesterday', execute=True):
-            report_request_json = {
-                'dateRanges' : [{ 'startDate' : start_date, 'endDate' : end_date }],
-                'dimensions': [
-                    { 'name': 'ga:searchKeyword' }
-                ],
-                'metrics': [
-                    { 'expression': 'ga:users', 'formattingType' : 'INTEGER' },
-                    { 'expression': 'ga:sessions', 'formattingType' : 'INTEGER' },
-                    { 'expression': 'ga:pageviews', 'formattingType' : 'INTEGER' }
-                ],
-                "orderBys" : [{ 'fieldName' : 'ga:pageviews', 'sortOrder' : 'descending' }],
-                'dimensionFilterClauses' : [
-                    {
-                        "filters" : [
-                            {
-                                "dimensionName" : "ga:searchDestinationPage",
-                                "expressions" : ["/search/"],
-                                "operator" : "PARTIAL"
-                            }
-                        ]
-                    }
-                ]
-            }
-            if execute:
-                return self.query_reports([report_request_json])
-            return report_request_json
-
-        @report(disabled=True)
-        def browse_search_queries(self, start_date='yesterday', end_date='yesterday', execute=True):
-            report_request_json = {
-                'dateRanges' : [{ 'startDate' : start_date, 'endDate' : end_date }],
-                'dimensions': [
-                    { 'name': 'ga:searchKeyword' }
-                ],
-                'metrics': [
-                    { 'expression': 'ga:users', 'formattingType' : 'INTEGER' },
-                    { 'expression': 'ga:sessions', 'formattingType' : 'INTEGER' },
-                    { 'expression': 'ga:pageviews', 'formattingType' : 'INTEGER' }
-                ],
-                "orderBys" : [{ 'fieldName' : 'ga:pageviews', 'sortOrder' : 'descending' }],
-                'dimensionFilterClauses' : [
-                    {
-                        "filters" : [
-                            {
-                                "dimensionName" : "ga:searchDestinationPage",
-                                "expressions" : ["/browse/"],
-                                "operator" : "PARTIAL"
-                            }
-                        ]
-                    }
-                ]
-            }
-            if execute:
-                return self.query_reports([report_request_json])
-            return report_request_json
-
         @report
         def fields_faceted(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
