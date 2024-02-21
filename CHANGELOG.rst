@@ -9,7 +9,7 @@ Change Log
 
 0.5.0
 =====
-* Google Analytics checks added
+* Add lifecycle management checks
 
 
 0.4.0

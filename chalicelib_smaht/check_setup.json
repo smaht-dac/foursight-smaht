@@ -360,7 +360,7 @@
         "title": "Check for files that require lifecycle updates",
         "group": "Lifecycle Checks",
         "schedule": {
-            "manual_checks": {
+            "hourly_checks": {
                 "all": {
                     "kwargs": {
                         "files_per_run": 100,
@@ -380,7 +380,7 @@
         "title": "Check for deleted files that require lifecycle updates",
         "group": "Lifecycle Checks",
         "schedule": {
-            "manual_checks": {
+            "hourly_checks": {
                 "all": {
                     "kwargs": {
                         "files_per_run": 50,
