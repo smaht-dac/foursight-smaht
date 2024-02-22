@@ -26,7 +26,7 @@ DEFAULT_GOOGLE_API_CONFIG = {
 
     ],
     # "analytics_property_id" : '421559857',                  # SMAHT - Localhost
-    # "analytics_property_id" : '422485570',                  # SMAHT - Wolf
+    # "analytics_property_id" : '422485570',                  # SMAHT - Test
     "analytics_property_id" : '422474776',                  # SMAHT - Production
     "analytics_page_size" : 10000,
     "analytics_timezone" : "US/Eastern",                    # 4DN Analytics account is setup for EST time zone.
