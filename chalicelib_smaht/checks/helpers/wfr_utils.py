@@ -6,7 +6,7 @@ from packaging import version
 
 
 def get_md5_mwfrs_for_file(my_auth, file_uuid, md5_mwf_uuid):
-    query = f"type=MetaWorkflowRun&meta_workflow.uuid={md5_mwf_uuid}&input.files.file.uuid={file_uuid}"
+    query = f"/search/?type=MetaWorkflowRun&meta_workflow.uuid={md5_mwf_uuid}&input.files.file.uuid={file_uuid}"
     return ff_utils.search_metadata(query, key=my_auth)
 
 
