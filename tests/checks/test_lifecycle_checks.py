@@ -12,7 +12,6 @@ from chalicelib_smaht.checks.helpers.lifecycle_utils import (
 class TestLifecycleChecks:
 
     files = []
-    projects = []
 
     # Pytest does not discover classes with __init__. Therefore this workaround to load the data
     def load_metadata(self):
@@ -23,7 +22,6 @@ class TestLifecycleChecks:
         with open('tests/checks/lifecycle_testdata.json', 'r') as f:
             data = json.load(f)
             self.files = data["files"]
-            self.projects = data["projects"]
 
     def search_metadata_mock_func(self, path, key):
         # The check calls this function twice. Just return [] the second time
@@ -31,21 +29,16 @@ class TestLifecycleChecks:
             return []
         return self.files
 
-    def get_metadata_mock_func(self, project_uuid, key):
-        return next(filter(lambda x: x["uuid"] == project_uuid, self.projects))
-
     # Fix the utcnow() function so that we get consistent results
     def get_datetime_utcnow_mock_func(self):
         return datetime.datetime(2022, 5, 24)
 
 
     @patch('chalicelib_smaht.checks.helpers.lifecycle_utils.get_datetime_utcnow')
-    @patch('dcicutils.ff_utils.get_metadata')
     @patch('dcicutils.ff_utils.search_metadata')
-    def test_check_file_lifecycle_status(self, mock_search_metadata, mock_get_metadata, mock_datetime_utcnow):
+    def test_check_file_lifecycle_status(self, mock_search_metadata, mock_datetime_utcnow):
         self.load_metadata()
         mock_search_metadata.side_effect = self.search_metadata_mock_func
-        mock_get_metadata.side_effect = self.get_metadata_mock_func
         mock_datetime_utcnow.side_effect = self.get_datetime_utcnow_mock_func
         # None of the input arguments have actually any effect, as they all go into the search_metadata query, which is mocked
         check_result = check_file_lifecycle_status(1, 1, 1, None)
@@ -62,22 +55,18 @@ class TestLifecycleChecks:
             "file_7": DEEP_ARCHIVE,
             "file_8": INFREQUENT_ACCESS,
             "file_9": DELETED,
-            "file_10": DELETED, # project specific lifecycle policy
+            "file_10": DELETED,
             "file_20": DEEP_ARCHIVE,
             "file_21": DEEP_ARCHIVE,
             "file_22": DELETED,
             "file_23": INFREQUENT_ACCESS,
             "file_24": DEEP_ARCHIVE,
             "file_25": DEEP_ARCHIVE, # status does not change, should not be in the result set
-            "file_26": STANDARD, # status does not change, should not be in the result set
+            "file_26": INFREQUENT_ACCESS, # status does not change, should not be in the result set
             "file_27": INFREQUENT_ACCESS,
             "file_28": DELETED,
             "file_40": INFREQUENT_ACCESS, # extra files
             "file_41": INFREQUENT_ACCESS, # extra files
-            "file_50": INFREQUENT_ACCESS, # custom policy
-            "file_51": GLACIER, # custom policy
-            "file_52": DEEP_ARCHIVE, # custom policy
-            "file_53": DELETED, # custom policy
         }
 
         files_to_update = check_result["files_to_update"]

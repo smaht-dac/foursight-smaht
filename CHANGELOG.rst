@@ -7,6 +7,10 @@ foursight-smaht
 Change Log
 ----------
 
+0.5.0
+=====
+* Add lifecycle management checks
+
 
 0.5.0
 =====
