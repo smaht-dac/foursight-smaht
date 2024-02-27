@@ -7,9 +7,16 @@ foursight-smaht
 Change Log
 ----------
 
+0.6.0
+=====
+* Added update of a gitinfo.json file in GitHub Actions (.github/workflows/main-publish.yml).
+* Update foursight-core with fix to Portal Reindex page (to not show initial deploy).
+
+
 0.5.0
 =====
 * Add lifecycle management checks
+
 
 
 0.4.0
