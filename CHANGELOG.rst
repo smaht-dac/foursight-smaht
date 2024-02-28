@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.7.0
+=====
+* Add md5 check
+
+
 0.6.0
 =====
 * Added update of a gitinfo.json file in GitHub Actions (.github/workflows/main-publish.yml).
