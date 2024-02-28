@@ -58,6 +58,7 @@ DEFAULT_GOOGLE_API_CONFIG = {
         'itemName'              : 'ga:productName',
         'itemId'                : 'ga:productSku',
         'itemCategory2'         : 'ga:productCategoryLevel2',
+        'itemCategory3'         : 'ga:productCategoryLevel3',
         'itemBrand'             : 'ga:productBrand',
         'customEvent:lab'       : 'ga:productBrand',
         'itemListName'          : 'ga:productListName',
@@ -627,6 +628,7 @@ class GoogleAPISyncer:
                     { 'name': 'itemId' },
                     { 'name': 'itemCategory' },
                     { 'name': 'itemCategory2' },
+                    { 'name': 'itemCategory3' },
                     { 'name': 'itemBrand' }
                 ],
                 "order_bys" : [
