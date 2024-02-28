@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.7.0
+=====
+* Google Analytics checks added
+
+
 0.6.0
 =====
 * Added update of a gitinfo.json file in GitHub Actions (.github/workflows/main-publish.yml).
@@ -16,7 +21,6 @@ Change Log
 0.5.0
 =====
 * Add lifecycle management checks
-
 
 
 0.4.0
