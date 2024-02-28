@@ -90,8 +90,8 @@ class MetaWorkflowRunsFound:
         self.add_items(search_response)
 
 
-@check_function(file_type="File", start_date=None, max_files=1, action="md5run_start")
-def md5run_status(connection, file_type="", start_date=None, max_files=1, **kwargs):
+@check_function(file_type="File", start_date=None, max_files=50, action="md5run_start")
+def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwargs):
     """Find files uploaded to S3 without MD5 checksum
 
     Check assumptions:

@@ -191,10 +191,10 @@
         "title": "MD5 runs",
         "group": "Pipeline Checks",
         "schedule": {
-            "manual_checks": {
+            "hourly_checks": {
                 "all": {
                     "kwargs": {
-                        "max_files": 1,
+                        "max_files": 50,
                         "primary": true,
                         "queue_action": "prod"
                     },
