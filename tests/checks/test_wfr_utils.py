@@ -3,7 +3,7 @@ import json
 
 from chalicelib_smaht.checks.helpers.wfr_utils import (
     get_latest_md5_mwf,
-    pageinate_list
+    paginate_list
 )
 
 # TO RUN THESE TESTS LOCALLY USE: pytest --noconftest
@@ -34,7 +34,7 @@ class TestWfrUtils:
         mwf = get_latest_md5_mwf(None)
         assert mwf['uuid'] == "mwf_2"
 
-    def test_pageinate_list(self):
+    def test_paginate_list(self):
         list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-        p_list = pageinate_list(list, 4)
+        p_list = paginate_list(list, 4)
         assert p_list == [[1, 2, 3, 4], [5, 6, 7, 8], [9]]

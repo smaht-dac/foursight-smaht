@@ -132,7 +132,7 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
     running = []
     missing_md5 = []
     not_switched_status = []
-    problems = []  # multiple failed runs
+    problems = {}
     my_s3_util = s3Utils(env=env)
     raw_bucket = my_s3_util.raw_file_bucket
     out_bucket = my_s3_util.outfile_bucket
@@ -158,7 +158,7 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
         if not head_info:
             no_s3_file.append(file_id)
             continue
-        md5_mwfrs_for_file = get_md5_mwfrs_for_file(my_auth, a_file["uuid"], md5_mwf["uuid"])
+        md5_mwfrs_for_file = get_md5_mwfrs_for_file(my_auth, a_file["uuid"])
         if len(md5_mwfrs_for_file) == 0:
             missing_md5.append(file_id)
         elif len(md5_mwfrs_for_file) == 1:
@@ -166,11 +166,11 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
             if md5_final_status == "complete":
                 not_switched_status.append(file_id)
             elif md5_final_status in ["failed", "stopped"]:
-                problems.append(file_id)
+                problems[file_id] = "The md5 run for this file is stopped or failed"
             else:
                 running.append(file_id)
         else:
-            problems.append(file_id)
+            problems[file_id] = "There are multiple md5 MetaWorkflowRuns for this file"
 
     if no_s3_file:
         msg = "%s file(s) are pending upload" % len(no_s3_file)
@@ -181,7 +181,7 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
         check.brief_output.append(msg)
         check.full_output["files_running_md5"] = running
     if problems:
-        msg = str(len(problems)) + " file(s) have problems"
+        msg = str(len(problems.keys())) + " file(s) have problems"
         check.brief_output.append(msg)
         check.full_output["problems"] = problems
     if missing_md5:

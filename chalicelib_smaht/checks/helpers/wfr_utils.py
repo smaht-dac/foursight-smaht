@@ -5,8 +5,8 @@ from dcicutils.s3_utils import s3Utils
 from packaging import version
 
 
-def get_md5_mwfrs_for_file(my_auth, file_uuid, md5_mwf_uuid):
-    query = f"/search/?type=MetaWorkflowRun&meta_workflow.uuid={md5_mwf_uuid}&input.files.file.uuid={file_uuid}"
+def get_md5_mwfrs_for_file(my_auth, file_uuid):
+    query = f"/search/?type=MetaWorkflowRun&meta_workflow.name=md5&input.files.file.uuid={file_uuid}"
     return ff_utils.search_metadata(query, key=my_auth)
 
 
@@ -29,10 +29,10 @@ def get_latest_md5_mwf(my_auth):
     return latest_md5_item
 
 # Unused right now - maybe useful later
-def pageinate_list(list, page_size):
+def paginate_list(list, page_size):
     """ 
-    Pageinate a list. Example:
-    pageinate_list([a, b, c, d, e, f, g, h, i], 4) returns [[a, b, c, d], [e, f, g, h], [i]]
+    Paginate a list. Example:
+    paginate_list([a, b, c, d, e, f, g, h, i], 4) returns [[a, b, c, d], [e, f, g, h], [i]]
     """
     return [list[i:i+page_size] for i in range(0, len(list), page_size)]
 
