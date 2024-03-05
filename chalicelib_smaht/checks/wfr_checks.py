@@ -4,14 +4,17 @@ from datetime import datetime
 
 from dcicutils import ff_utils
 from dcicutils.s3_utils import s3Utils
-from magma_smaht import reset_metawfr, run_metawfr, status_metawfr
+from magma_smaht import reset_metawfr, run_metawfr, status_metawfr, create_metawfr
 # from magma_smaht.create_metawfr import (
 #     MetaWorkflowRunFromSampleProcessing,
 #     MetaWorkflowRunFromSample,
 # )
 
 from .helpers import constants
-from .helpers import wfr_utils
+from .helpers.wfr_utils import (
+    get_latest_md5_mwf,
+    get_md5_mwfrs_for_file
+)
 from .helpers.confchecks import action_function, check_function
 from .helpers.utils import (
     initialize_check,
@@ -87,8 +90,8 @@ class MetaWorkflowRunsFound:
         self.add_items(search_response)
 
 
-@check_function(file_type="File", start_date=None, action="md5runsmaht_start")
-def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
+@check_function(file_type="File", start_date=None, max_files=50, action="md5run_start")
+def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwargs):
     """Find files uploaded to S3 without MD5 checksum
 
     Check assumptions:
@@ -102,8 +105,8 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
             formatted as YYYY-MM-DD
     """
     start = datetime.utcnow()
-    check = initialize_check("md5runsmaht_status", connection)
-    check.action = "md5runsmaht_start"
+    check = initialize_check("md5run_status", connection)
+    check.action = "md5run_start"
     check.description = "Find files uploaded to S3 without MD5 checksum"
 
     env = connection.ff_env
@@ -115,8 +118,8 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
         check.allow_action = False
         return check
     my_auth = connection.ff_keys
-    query = "/search/?status=uploading&status=upload failed"
-    query += "&type=" + file_type
+    query = f"/search/?status=uploading&status=upload+failed&limit={max_files}"
+    query += f"&type={file_type}"
     if start_date is not None:
         query += "&date_created.from=" + start_date
     res = ff_utils.search_metadata(query, key=my_auth)
@@ -129,10 +132,17 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
     running = []
     missing_md5 = []
     not_switched_status = []
-    problems = []  # multiple failed runs
+    problems = {}
     my_s3_util = s3Utils(env=env)
     raw_bucket = my_s3_util.raw_file_bucket
     out_bucket = my_s3_util.outfile_bucket
+    md5_mwf = get_latest_md5_mwf(my_auth)
+    if not md5_mwf:
+        check.status = constants.CHECK_FAIL
+        check.summary = "Unable to identify suitable MD5 MetaWorkflow. Has the pipeline been deployed?"
+        check.allow_action = False
+        return check
+
     for a_file in res:
         if is_past_time_limit(start, LAMBDA_LIMIT):
             check.brief_output.append("Did not complete due to time limitations")
@@ -143,22 +153,25 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
         else:  # covers cases of SubmittedFile, ReferenceFile
             my_bucket = raw_bucket
         # check if file is in s3
-        file_id = a_file["accession"]
+        file_id = a_file["uuid"]
         head_info = my_s3_util.does_key_exist(a_file["upload_key"], my_bucket)
         if not head_info:
             no_s3_file.append(file_id)
             continue
-        md5_report = wfr_utils.get_wfr_out(a_file, "md5", key=my_auth, md_qc=True)
-        if md5_report["status"] == "running":
-            running.append(file_id)
-        elif md5_report["status"].startswith("no complete run, too many"):
-            problems.append(file_id)
-        # most probably the trigger did not work, and we run it manually
-        elif md5_report["status"] != "complete":
+        md5_mwfrs_for_file = get_md5_mwfrs_for_file(my_auth, a_file["uuid"])
+        if len(md5_mwfrs_for_file) == 0:
             missing_md5.append(file_id)
-        # there is a successful run, but status is not switched, happens when a file is reuploaded.
-        elif md5_report["status"] == "complete":
-            not_switched_status.append(file_id)
+        elif len(md5_mwfrs_for_file) == 1:
+            md5_final_status = md5_mwfrs_for_file[0]["final_status"]
+            if md5_final_status == "complete":
+                not_switched_status.append(file_id)
+            elif md5_final_status in ["failed", "stopped"]:
+                problems[file_id] = "The md5 run for this file is stopped or failed"
+            else:
+                running.append(file_id)
+        else:
+            problems[file_id] = "There are multiple md5 MetaWorkflowRuns for this file"
+
     if no_s3_file:
         msg = "%s file(s) are pending upload" % len(no_s3_file)
         check.brief_output.append(msg)
@@ -168,7 +181,7 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
         check.brief_output.append(msg)
         check.full_output["files_running_md5"] = running
     if problems:
-        msg = str(len(problems)) + " file(s) have problems"
+        msg = str(len(problems.keys())) + " file(s) have problems"
         check.brief_output.append(msg)
         check.full_output["problems"] = problems
     if missing_md5:
@@ -193,111 +206,50 @@ def md5runsmaht_status(connection, file_type="", start_date=None, **kwargs):
 
 
 @action_function(start_missing=True, start_not_switched=True)
-def md5runsmaht_start(connection, start_missing=True, start_not_switched=True, **kwargs):
+def md5run_start(connection, start_missing=True, start_not_switched=True, **kwargs):
     """Start MD5 checksums on Files or update File MD5 checksum status"""
     start = datetime.utcnow()
-    action, check_result = initialize_action("md5runsmaht_start", connection, kwargs)
-
+    action, check_result = initialize_action("md5run_start", connection, kwargs)
+    my_auth = connection.ff_keys
     targets = []
     runs_started = {}
     runs_failed = {}
-    step_function_name = get_step_function_name(connection)
     if start_missing:
         targets.extend(check_result.get("files_without_md5run", []))
     if start_not_switched:
         targets.extend(check_result.get("files_with_run_and_wrong_status", []))
     action.output["targets"] = targets
-    md5_workflow_uuid, md5_workflow_version = get_md5_workflow(connection)
-    if md5_workflow_uuid:
-        action.output["md5_workflow_uuid"] = md5_workflow_uuid
-        action.output["md5_workflow_version"] = md5_workflow_version
-    else:
-        msg = "Unable to identify suitable MD5 Workflow on this environment"
-        action.output["error"] = msg
-        action.description = msg
-        return action
+    md5_mwf = get_latest_md5_mwf(my_auth) # We already checked the existence of this in the check
+    md5_mwf_uuid = md5_mwf["uuid"]
+    action.output["md5_workflow_uuid"] = md5_mwf_uuid
+    
     for target_file in targets:
         if is_past_time_limit(start, LAMBDA_LIMIT):
             action.description = "Did not complete action due to time limitations"
             break
-        target_file_properties = ff_utils.get_metadata(
-            target_file, key=connection.ff_keys, add_on="frame=raw"
-        )
-        workflow_run_common_fields = {
-            "submission_centers": target_file_properties["submission_centers"],
-            "consortia": target_file_properties["consortia"],
-        }
-        workflow_run_template = {
-            "app_name": "md5",
-            "workflow_uuid": md5_workflow_uuid,
-            "config": {
-                "ebs_size": 10,
-                "instance_type": "t3.small",
-                "EBS_optimized": True,
-                "public_postrun_json": True,
-                "behavior_on_capacity_limit": "wait_and_retry",
-            },
-            "common_fields": workflow_run_common_fields,
-            "parameters": {},
-            "custom_qc_fields": {},
-        }
-        file_parameters = {
-            "input_file": target_file_properties["uuid"],
-            "additional_file_parameters": {"input_file": {"mount": True}},
-        }
-        run_result = wfr_utils.run_missing_wfr(
-            workflow_run_template,
-            file_parameters,
-            target_file_properties["accession"],
-            connection.ff_keys,
-            connection.ff_env,
-            step_function_name,
-        )
-        if run_result.startswith("http"):  # Success is AWS URL
-            runs_started[target_file] = run_result
-        else:  # Failure is error message
-            runs_failed[target_file] = run_result
+
+        input_arg = "input_files"
+        input = [{
+            'argument_name': input_arg,
+            'argument_type': "file",
+            'files': [{
+                'file': target_file,
+                'dimension': "0"
+            }]
+        }]
+        
+        try:
+            mwfr = create_metawfr.mwfr_from_input(md5_mwf_uuid, input, input_arg, my_auth)
+            post_response = ff_utils.post_metadata(mwfr, "MetaWorkflowRun", my_auth)
+            runs_started[target_file] = post_response["@graph"][0]["accession"] # Success is MWFR accession
+        except Exception as e:
+            runs_failed[target_file] = str(e) # Failure is error message
+        
     action.output["runs_started"] = runs_started
     action.output["runs_failed"] = runs_failed
     if not runs_failed:
         action.status = constants.ACTION_PASS
     return action
-
-
-def get_md5_workflow(connection):
-    """Get up-to-date MD5 workflow on the environment.
-
-    MD5 workflows are expected to have explicit name of "md5" and to
-    possess a version of the form x.x.x (e.g. v12.4.3) or x (e.g. v31),
-    with the former considered the "correct", default form and the
-    latter considered a fall-back.
-    """
-    md5_uuid = ""
-    md5_version = ""
-    three_version_md5s = {}
-    single_version_md5s = {}
-    three_version_pattern = re.compile(r"^(\d+)(\.(\d+)){2}$")
-    single_version_pattern = re.compile(r"^(\d+)$")
-    query = "/search/?type=Workflow&app_name=md5&field=uuid&field=app_version"
-    search_results = ff_utils.search_metadata(query, key=connection.ff_keys)
-    for md5_workflow in search_results:
-        workflow_uuid = md5_workflow.get("uuid")
-        version = md5_workflow.get("app_version", "").lstrip("v")
-        if three_version_pattern.match(version):
-            three_version_md5s[workflow_uuid] = version
-        elif single_version_pattern.match(version):
-            single_version_md5s[workflow_uuid] = version
-    if three_version_md5s:
-        for workflow_uuid, workflow_version in three_version_md5s.items():
-            if workflow_version > md5_version:
-                md5_version = workflow_version
-                md5_uuid = workflow_uuid
-    elif single_version_md5s:
-        for workflow_uuid, workflow_version in single_version_md5s.items():
-            if workflow_version > md5_version:
-                md5_version = workflow_version
-                md5_uuid = workflow_uuid
-    return md5_uuid, md5_version
 
 
 @check_function(action="run_metawfrs")

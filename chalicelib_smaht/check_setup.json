@@ -187,6 +187,22 @@
             "staging"
         ]
     },
+    "md5run_status": {
+        "title": "MD5 runs",
+        "group": "Pipeline Checks",
+        "schedule": {
+            "hourly_checks": {
+                "all": {
+                    "kwargs": {
+                        "max_files": 50,
+                        "primary": true,
+                        "queue_action": "prod"
+                    },
+                    "dependencies": []
+                }
+            }
+        }
+    },
     "elastic_search_space": {
         "title": "ES Disk Space Check",
         "group": "Elasticsearch Checks",
@@ -247,6 +263,23 @@
                         "primary": true
                     },
                     "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "staging"
+        ]
+    },
+    "check_long_running_ec2s": {
+        "title": "Check Long-Running EC2s",
+        "group": "System Checks",
+        "schedule": {
+            "morning_checks": {
+                "all": {
+                    "dependencies": [],
+                    "kwargs": {
+                        "primary": true
+                    }
                 }
             }
         },
