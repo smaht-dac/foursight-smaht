@@ -10,6 +10,7 @@ Change Log
 0.7.0
 =====
 * Add md5 check
+* Add long running EC2 check
 
 
 0.6.0
