@@ -194,7 +194,7 @@
             "hourly_checks": {
                 "all": {
                     "kwargs": {
-                        "max_files": 25,
+                        "max_files": 50,
                         "primary": true,
                         "queue_action": "prod"
                     },
@@ -272,7 +272,7 @@
     },
     "check_long_running_ec2s": {
         "title": "Check Long-Running EC2s",
-        "group": "System checks",
+        "group": "System Checks",
         "schedule": {
             "morning_checks": {
                 "all": {
