@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.7.1
+=====
+* Adjust md5 check setup
+
+
 0.7.0
 =====
 * Add md5 check

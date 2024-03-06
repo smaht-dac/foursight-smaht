@@ -192,7 +192,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "hourly_checks": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "max_files": 50,
                         "primary": true,
@@ -201,7 +201,11 @@
                     "dependencies": []
                 }
             }
-        }
+        },
+        "display": [
+            "staging", 
+            "data"
+        ]
     },
     "elastic_search_space": {
         "title": "ES Disk Space Check",
