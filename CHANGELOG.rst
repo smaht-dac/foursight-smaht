@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.7.2
+=====
+* Run pipeline and lifecycle checks only on data
+
+
 0.7.1
 =====
 * Adjust md5 check setup
