@@ -90,7 +90,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -100,7 +100,8 @@
             }
         },
         "display": [
-            "staging"
+            "staging", 
+            "data"
         ]
     },
     "metawfrs_to_checkstatus": {
@@ -108,7 +109,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks_3": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -118,7 +119,8 @@
             }
         },
         "display": [
-            "staging"
+            "staging", 
+            "data"
         ]
     },
     "spot_failed_metawfrs": {
@@ -126,7 +128,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "fifteen_min_checks_2": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "primary": true,
                         "queue_action": "prod"
@@ -136,7 +138,8 @@
             }
         },
         "display": [
-            "staging"
+            "staging", 
+            "data"
         ]
     },
     "failed_metawfrs": {
@@ -144,7 +147,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -152,7 +155,8 @@
             }
         },
         "display": [
-            "staging"
+            "staging", 
+            "data"
         ]
     },
     "find_meta_workflow_runs_to_kill": {
@@ -160,7 +164,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -168,7 +172,8 @@
             }
         },
         "display": [
-            "staging"
+            "staging", 
+            "data"
         ]
     },
     "find_meta_workflow_runs_with_quality_metric_failure": {
@@ -176,7 +181,7 @@
         "group": "Pipeline Checks",
         "schedule": {
             "manual_checks": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "primary": true
                     }
@@ -184,7 +189,28 @@
             }
         },
         "display": [
-            "staging"
+            "staging", 
+            "data"
+        ]
+    },
+    "md5run_status": {
+        "title": "MD5 runs",
+        "group": "Pipeline Checks",
+        "schedule": {
+            "hourly_checks": {
+                "data": {
+                    "kwargs": {
+                        "max_files": 50,
+                        "primary": true,
+                        "queue_action": "prod"
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "staging", 
+            "data"
         ]
     },
     "elastic_search_space": {
@@ -247,6 +273,23 @@
                         "primary": true
                     },
                     "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "staging"
+        ]
+    },
+    "check_long_running_ec2s": {
+        "title": "Check Long-Running EC2s",
+        "group": "System Checks",
+        "schedule": {
+            "morning_checks": {
+                "all": {
+                    "dependencies": [],
+                    "kwargs": {
+                        "primary": true
+                    }
                 }
             }
         },
@@ -344,7 +387,7 @@
         "group": "Lifecycle Checks",
         "schedule": {
             "hourly_checks": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "files_per_run": 100,
                         "max_checking_frequency": 14,
@@ -356,7 +399,8 @@
             }
         },
         "display": [
-            "staging"
+            "staging", 
+            "data"
         ]
     },
     "check_deleted_files_lifecycle_status": {
@@ -364,7 +408,7 @@
         "group": "Lifecycle Checks",
         "schedule": {
             "hourly_checks": {
-                "all": {
+                "data": {
                     "kwargs": {
                         "files_per_run": 50,
                         "check_after": 14,
@@ -375,7 +419,8 @@
             }
         },
         "display": [
-            "staging"
+            "staging", 
+            "data"
         ]
     },
     "access_key_status": {

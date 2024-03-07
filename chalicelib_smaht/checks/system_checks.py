@@ -389,9 +389,7 @@ def check_long_running_ec2s(connection, **kwargs):
     names, or if they have no name.
     """
     check = CheckResult(connection, 'check_long_running_ec2s')
-    if Stage.is_stage_prod() is False:
-        check.summary = check.description = 'This check only runs on Foursight prod'
-        return check
+
 
     client = boto3.client('ec2')
     # flag instances that contain any of flag_names and have been running
@@ -436,8 +434,8 @@ def check_long_running_ec2s(connection, **kwargs):
                 flag_instance = False
             # see if long running instances are associated with a deleted WFR
             if flag_instance and inst_name and created < warn_time:
-                search_url = 'search/?type=WorkflowRunAwsem&awsem_job_id='
-                search_url += '&awsem_job_id='.join([name[6:] for name in inst_name if name.startswith('awsem-')])
+                search_url = 'search/?type=WorkflowRun&job_id='
+                search_url += '&job_id='.join([name[6:] for name in inst_name if name.startswith('awsem-')])
                 wfrs = ff_utils.search_metadata(search_url, key=connection.ff_keys)
                 if wfrs:
                     ec2_log['active workflow runs'] = [wfr['@id'] for wfr in wfrs]

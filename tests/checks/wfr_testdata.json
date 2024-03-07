@@ -1,0 +1,21 @@
+{
+  "md5_mwf_single": [
+    {
+      "uuid": "mwf_1",
+      "name": "md5",
+      "version": "0.0.1"
+    }
+  ],
+  "md5_mwf_multiple": [
+    {
+      "uuid": "mwf_1",
+      "name": "md5",
+      "version": "0.0.1"
+    },
+    {
+      "uuid": "mwf_2",
+      "name": "md5",
+      "version": "0.0.2"
+    }
+  ]
+}
