@@ -7,6 +7,13 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.0
+=====
+* Update foursight-core version for UI fixes WRT environment names;
+  and changes to local-check-execution script.
+* Use fs_env instead of ff_env in pipeline checks
+
+
 0.7.2
 =====
 * Run pipeline and lifecycle checks only on data
