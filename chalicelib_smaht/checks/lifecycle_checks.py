@@ -57,7 +57,7 @@ def patch_file_lifecycle_status(connection, **kwargs):
     # start = datetime.utcnow()
     action = ActionResult(connection, "patch_file_lifecycle_status")
     my_auth = connection.ff_keys
-    env = connection.ff_env
+    env = connection.fs_env
     my_s3_util = s3Utils(env=env)
     start = lifecycle_utils.get_datetime_utcnow()
     raw_bucket = my_s3_util.raw_file_bucket
