@@ -7,7 +7,7 @@ foursight-smaht
 Change Log
 ----------
 
-0.7.3
+0.8.0
 =====
 * Update foursight-core version for UI fixes WRT environment names;
   and changes to local-check-execution script.
