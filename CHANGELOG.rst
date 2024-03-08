@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.1
+=====
+* Use correct envs in md5 check
+
+
 0.8.0
 =====
 * Update foursight-core version for UI fixes WRT environment names;

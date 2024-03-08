@@ -109,8 +109,7 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
     check.action = "md5run_start"
     check.description = "Find files uploaded to S3 without MD5 checksum"
 
-    env = connection.fs_env
-    indexing_queue = ff_utils.stuff_in_queues(env, check_secondary=False)
+    indexing_queue = ff_utils.stuff_in_queues(connection.ff_env, check_secondary=False)
     if indexing_queue:
         check.status = constants.CHECK_PASS
         check.brief_output = ["Waiting for indexing queue to clear"]
@@ -133,6 +132,7 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
     missing_md5 = []
     not_switched_status = []
     problems = {}
+    env = connection.fs_env
     my_s3_util = s3Utils(env=env)
     raw_bucket = my_s3_util.raw_file_bucket
     out_bucket = my_s3_util.outfile_bucket
