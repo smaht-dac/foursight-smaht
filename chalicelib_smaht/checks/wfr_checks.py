@@ -109,8 +109,7 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
     check.action = "md5run_start"
     check.description = "Find files uploaded to S3 without MD5 checksum"
 
-    env = connection.ff_env
-    indexing_queue = ff_utils.stuff_in_queues(env, check_secondary=False)
+    indexing_queue = ff_utils.stuff_in_queues(connection.ff_env, check_secondary=False)
     if indexing_queue:
         check.status = constants.CHECK_PASS
         check.brief_output = ["Waiting for indexing queue to clear"]
@@ -133,6 +132,7 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
     missing_md5 = []
     not_switched_status = []
     problems = {}
+    env = connection.fs_env
     my_s3_util = s3Utils(env=env)
     raw_bucket = my_s3_util.raw_file_bucket
     out_bucket = my_s3_util.outfile_bucket
@@ -285,7 +285,7 @@ def run_metawfrs(connection, **kwargs):
 
     success = []
     error = {}
-    env = connection.ff_env
+    env = connection.fs_env
     step_function_name = get_step_function_name(connection)
     meta_workflow_runs = check_result.get("meta_workflow_runs", {})
     meta_workflow_run_uuids = meta_workflow_runs.get("uuids", [])
@@ -356,7 +356,7 @@ def checkstatus_metawfrs(connection, **kwargs):
             status_metawfr.status_metawfr(
                 meta_workflow_run_uuid,
                 connection.ff_keys,
-                env=connection.ff_env,
+                env=connection.fs_env,
                 valid_status=FINAL_STATUS_TO_CHECK,
             )
             success.append(meta_workflow_run_uuid)
@@ -408,7 +408,7 @@ def reset_spot_failed_metawfrs(connection, **kwargs):
 
     success = {}
     error = {}
-    s3_utils = s3Utils(env=connection.ff_env)
+    s3_utils = s3Utils(env=connection.fs_env)
     log_bucket = s3_utils.tibanna_output_bucket
     meta_workflow_runs = check_result.get("meta_workflow_runs", {})
     meta_workflow_run_uuids = meta_workflow_runs.get("uuids", [])
@@ -576,7 +576,7 @@ def reset_failed_metawfrs(connection, **kwargs):
 #
 #     vcfs_to_ingest_uuids = []
 #     vcfs_to_ingest_accessions = []
-#     env = connection.ff_env
+#     env = connection.fs_env
 #     indexing_queue = ff_utils.stuff_in_queues(env, check_secondary=False)
 #     if indexing_queue:
 #         msg = "Waiting for indexing queue to clear"

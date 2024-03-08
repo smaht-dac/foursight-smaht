@@ -7,10 +7,22 @@ foursight-smaht
 Change Log
 ----------
 
-0.7.3
+0.8.2
 =====
 * Update foursight-core version for UI fixes WRT environment names;
   and changes to local-check-execution script.
+
+
+0.8.1
+=====
+* Use correct envs in md5 check
+
+
+0.8.0
+=====
+* Update foursight-core version for UI fixes WRT environment names;
+  and changes to local-check-execution script.
+* Use fs_env instead of ff_env in pipeline checks
 
 
 0.7.2
