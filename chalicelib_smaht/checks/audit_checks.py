@@ -91,13 +91,17 @@ def check_submitted_md5(connection):
     """ Check that any submitted md5s are consistent with the ones we generated """
     check = CheckResult(connection, 'check_submitted_md5')
 
-    search_url = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&content_md5sum!=No+value&limit=100'
+    search_url = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&content_md5sum!=No+value&limit=500' \
+                 '&field=submitted_md5sum&field=content_md5sum'
     results = ff_utils.search_metadata(search_url, key=connection.ff_keys)
     atids = {result['@id'] for result in results if result['submitted_md5sum'] != result['content_md5sum']}
     if atids:
         check.status = 'WARN'
         check.summary = 'Inconsistent Content Md5Sum(s) Found!'
         check.description = f'{len(atids)} items found with inconsistent md5sum, for results see below link.'
+        check.full_output = {
+            'items': atids
+        }
         check.ff_link = connection.ff_server + search_url
     else:
         check.status = 'PASS'
