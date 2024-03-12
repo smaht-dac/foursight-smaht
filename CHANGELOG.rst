@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.2
+=====
+* Adds an audit check for submitted md5 consistency
+
+
 0.8.1
 =====
 * Use correct envs in md5 check

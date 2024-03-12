@@ -84,3 +84,23 @@ def check_validation_errors(connection, **kwargs):
         check.summary = 'No validation errors'
         check.description = 'No validation errors found.'
     return check
+
+
+@check_function()
+def check_submitted_md5(connection):
+    """ Check that any submitted md5s are consistent with the ones we generated """
+    check = CheckResult(connection, 'check_submitted_md5')
+
+    search_url = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&content_md5sum!=No+value&limit=100'
+    results = ff_utils.search_metadata(search_url, key=connection.ff_keys)
+    atids = {result['@id'] for result in results if result['submitted_md5sum'] != result['content_md5sum']}
+    if atids:
+        check.status = 'WARN'
+        check.summary = 'Inconsistent Content Md5Sum(s) Found!'
+        check.description = f'{len(atids)} items found with inconsistent md5sum, for results see below link.'
+        check.ff_link = connection.ff_server + search_url
+    else:
+        check.status = 'PASS'
+        check.summary = 'No inconsistent md5sums.'
+        check.description = 'No inconsistent md5sums.'
+    return check
