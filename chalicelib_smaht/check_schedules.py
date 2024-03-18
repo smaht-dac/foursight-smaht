@@ -96,6 +96,11 @@ def hourly_checks_2(event):
 
 
 @schedule(SCHEDULES, stage=STAGE, disabled_stages=DISABLED_STAGES)
+def monday_checks(event):
+    app.core.queue_scheduled_checks('all', 'monday_checks')
+
+
+@schedule(SCHEDULES, stage=STAGE, disabled_stages=DISABLED_STAGES)
 def monthly_checks(event):
     app.core.queue_scheduled_checks('all', 'monthly_checks')
 
