@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.3
+=====
+* Adds an audit check intended to run weekly to detect new submission not made by us
+
+
 0.8.2
 =====
 * Adds an audit check for submitted md5 consistency

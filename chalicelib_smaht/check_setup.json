@@ -540,5 +540,22 @@
         "display": [
             "staging"
         ]
+    },
+    "check_for_new_submissions": {
+        "title": "Checks For New Submissions",
+        "group": "Audit Checks",
+        "schedule": {
+            "monday_checks": {
+                "data": {
+                    "kwargs": {
+                        "primary": true
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "staging"
+        ]
     }
 }
