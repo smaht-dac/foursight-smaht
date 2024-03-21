@@ -7,9 +7,42 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.3
+=====
+* Adds an audit check intended to run weekly to detect new submission not made by us
+
+
+0.8.2
+=====
+* Adds an audit check for submitted md5 consistency
+
+
+0.8.1
+=====
+* Use correct envs in md5 check
+
+
+0.8.0
+=====
+* Update foursight-core version for UI fixes WRT environment names;
+  and changes to local-check-execution script.
+* Use fs_env instead of ff_env in pipeline checks
+
+
+0.7.2
+=====
+* Run pipeline and lifecycle checks only on data
+
+
+0.7.1
+=====
+* Adjust md5 check setup
+
+
 0.7.0
 =====
-* Google Analytics checks added
+* Add md5 check
+* Add long running EC2 check
 
 
 0.6.0
