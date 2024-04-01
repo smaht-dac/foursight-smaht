@@ -84,3 +84,60 @@ def check_validation_errors(connection, **kwargs):
         check.summary = 'No validation errors'
         check.description = 'No validation errors found.'
     return check
+
+
+@check_function()
+def check_submitted_md5(connection):
+    """ Check that any submitted md5s are consistent with the ones we generated """
+    check = CheckResult(connection, 'check_submitted_md5')
+
+    search_url = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&content_md5sum!=No+value&limit=500' \
+                 '&field=submitted_md5sum&field=content_md5sum'
+    results = ff_utils.search_metadata(search_url, key=connection.ff_keys)
+    atids = {result['@id'] for result in results if result['submitted_md5sum'] != result['content_md5sum']}
+    if atids:
+        check.status = 'WARN'
+        check.summary = 'Inconsistent Content Md5Sum(s) Found!'
+        check.description = f'{len(atids)} items found with inconsistent md5sum, for results see below link.'
+        check.full_output = {
+            'items': atids
+        }
+        check.ff_link = connection.ff_server + search_url
+    else:
+        check.status = 'PASS'
+        check.summary = 'No inconsistent md5sums.'
+        check.description = 'No inconsistent md5sums.'
+    return check
+
+
+@check_function()
+def check_for_new_submissions(connection):
+    """ Weekly check that will compare against the previous week to determine if any new submissions
+        need attention
+    """
+    check = CheckResult(connection, 'check_for_new_submissions')
+    last_result = check.get_primary_result()
+    search_url = 'search/?type=IngestionSubmission&submission_centers.display_title%21=HMS+DAC'
+    results = ff_utils.search_metadata(search_url, key=connection.ff_keys)
+    current_result_count = results['total']
+    if not last_result:
+        check.status = 'PASS'
+        check.summary = 'First result - setting a baseline'
+        check.full_output = {
+            'submission_count': current_result_count
+        }
+    else:
+        last_result_count = int(last_result['full_output']['submission_count'])
+        if last_result_count <= current_result_count:
+            check.status = 'PASS'
+            check.summary = 'No change in submissions detected'
+            check.full_output = {
+                'submission_count': current_result_count
+            }
+        else:  # we detected an increase in submissions not touched by us
+            check.status = 'WARN'
+            check.summary = f'Detected {current_result_count - last_result_count} new submission for review'
+            check.full_output = {
+                'submission_count': current_result_count
+            }
+    return check

@@ -7,10 +7,21 @@ foursight-smaht
 Change Log
 ----------
 
-0.8.2
+0.8.4
 =====
+
 * Update foursight-core version for UI fixes WRT environment names;
   and changes to local-check-execution script.
+
+
+0.8.3
+=====
+* Adds an audit check intended to run weekly to detect new submission not made by us
+
+
+0.8.2
+=====
+* Adds an audit check for submitted md5 consistency
 
 
 0.8.1
