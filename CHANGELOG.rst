@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.5
+=====
+* Switch to 15min interval for md5
+
+
 0.8.4
 =====
 * Increase md5 run frequency
