@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.7
+=====
+* Bump Tibanna version (secure AMI update)
+
+
 0.8.6
 =====
 * Bump Magma version
