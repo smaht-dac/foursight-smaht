@@ -2010,4 +2010,4 @@ test = ["pytest (>=6.0.0)", "setuptools (>=65)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "a0cb45759792740e048ca066a1002bc77297f28e9963a6ed7aa8602d93164e95"
+content-hash = "69c7dadbadb4095ba7b6b55387d826555260156090719efae0ee02cc06feef72"
