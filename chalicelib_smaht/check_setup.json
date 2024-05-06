@@ -214,7 +214,7 @@
         "title": "MD5 runs",
         "group": "Pipeline Checks",
         "schedule": {
-            "hourly_checks": {
+            "fifteen_min_checks": {
                 "data": {
                     "kwargs": {
                         "max_files": 50,

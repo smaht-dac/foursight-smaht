@@ -7,6 +7,26 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.7
+=====
+* Bump Tibanna version (secure AMI update)
+
+
+0.8.6
+=====
+* Bump Magma version
+
+
+0.8.5
+=====
+* Switch to 15min interval for md5
+
+
+0.8.4
+=====
+* Increase md5 run frequency
+
+
 0.8.3
 =====
 * Adds an audit check intended to run weekly to detect new submission not made by us
