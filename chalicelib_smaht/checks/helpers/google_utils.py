@@ -208,7 +208,7 @@ class GoogleAPISyncer:
                     type = metric_types[metric_dict.name]
 
                 if type in ('TYPE_INTEGER', 'TYPE_STANDARD'):
-                    value = int(value)
+                    value = int(float(value))
                 elif type in ('TYPE_FLOAT', 'TYPE_CURRENCY', 'TYPE_TIME', 'TYPE_SECONDS'):
                     value = float(value)
                 elif type == 'TYPE_PERCENT': #not exists
