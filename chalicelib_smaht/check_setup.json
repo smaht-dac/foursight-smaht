@@ -557,5 +557,22 @@
         "display": [
             "staging"
         ]
+    },
+    "check_active_users": {
+        "title": "Active Users",
+        "group": "Audit Checks",
+        "schedule": {
+            "fifteen_min_checks": {
+                "data": {
+                    "kwargs": {
+                        "primary": true
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "staging"
+        ]
     }
 }
