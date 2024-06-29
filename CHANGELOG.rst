@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.8
+=====
+* Support for Python 3.12.
+
+
 0.8.7
 =====
 * Bump Tibanna version (secure AMI update)
