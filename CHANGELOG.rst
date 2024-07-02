@@ -7,6 +7,13 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.8
+=====
+* Support for Python 3.12.
+* Changed environment names in chalicelib_smaht/check_setup.json to "<env-name>" as they should
+  have been as these get expanded on-the-fly in foursight-core/.../check_utils.py/expand_check_setup.
+
+
 0.8.7
 =====
 * Bump Tibanna version (secure AMI update)
