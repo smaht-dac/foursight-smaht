@@ -207,7 +207,7 @@
         ]
     },
     "elastic_search_space": {
-        "title": "ES Disk Space Check FOOBAR XYZZY",
+        "title": "ES Disk Space Check",
         "group": "Elasticsearch Checks",
         "schedule": {
             "manual_checks": {
