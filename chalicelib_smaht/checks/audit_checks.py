@@ -141,3 +141,46 @@ def check_for_new_submissions(connection):
                 'submission_count': current_result_count
             }
     return check
+
+
+@check_function()
+def check_file_set_library_sequencing_value(connection):
+    '''
+    checks file_set to make sure they are linked to compatible library.assay and sequencing itesm
+    '''
+    check = CheckResult(connection, 'check_file_set_library_sequencing_value')
+    mutually_dependent = [
+        ("bulk_fiberseq",["pacbio_revio_hifi"]), # Fiber-Seq and PacBio
+        ("bulk_mas_iso_seq",["pacbio_revio_hifi"]), # MAS ISO-Seq and PacBio
+        ("cas9_nanopore",["ont_minion_mk1b","ont_promethion_2_solo","ont_promethion_24"]), # Cas9 Nanopore and ONT
+        ("bulk_ultralong_wgs",["ont_minion_mk1b","ont_promethion_2_solo","ont_promethion_24"]) # Ultralong WGS and ONT
+    ]
+    for pair in mutually_dependent:
+        assay = pair.index(0)
+        sequencers = pair.index(1)
+        file_sets = ff_utils.search_metadata(
+            'search/?type=FileSet&frame=object',
+            key=connection.ff_keys)
+        # Concatenate searches together for assay and sequencing types
+        #search/?type=Biosource&cell_line.display_title=No+value&frame=object' +
+        #''.join(['&biosource_type=' + c for c in cell_line_types]),
+    missing = []
+    for file_set in file_sets:
+        assay = [library.get("assay","") for library in file_set.get("libraries","")]
+        platform = file_set.get("sequencing","").get("platform")
+
+        missing.append({'uuid': file_set['uuid'],
+                        '@id': file_set['@id'],
+                        'libraries': file_set.get('libraries'),
+                        'sequencing': file_set.get('sequencing'),
+                        'description': file_set.get('description'),
+                        'error': 'Missing cell_line OntologyTerm'})
+    check.full_output = missing
+    check.brief_output = [item['@id'] for item in missing]
+    if missing:
+        check.status = 'WARN'
+        check.summary = 'Cell line biosources found missing cell_line metadata'
+    else:
+        check.status = 'PASS'
+        check.summary = 'No cell line biosources are missing cell_line metadata'
+    return check
