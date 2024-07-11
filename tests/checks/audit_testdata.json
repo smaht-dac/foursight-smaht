@@ -1,0 +1,40 @@
+{
+    "file_sets": [
+        {
+            "uuid": "file_set_1",
+            "submitted_id": "TEST_FILESET_CORRECT",
+            "libraries" : [
+                {
+                    "submitted_id" : "TEST_LIBRARY_ULTRALONG_WGS1",
+                    "assay": {
+                        "identifier": "bulk_ultralong_wgs"
+                    }
+                }
+            ],
+            "sequencing": {
+                "submitted_id": "TEST_SEQUENCING_ONT",
+                "sequencer" : {
+                    "identifier": "ont_promethion_24"
+                }
+            }
+        },
+        {
+            "uuid": "file_set_2",
+            "submitted_id": "TEST_FILESET_INCORRECT",
+            "libraries" : [
+                {
+                    "submitted_id" : "TEST_LIBRARY_ULTRALONG_WGS2",
+                    "assay": {
+                        "identifier": "bulk_ultralong_wgs"
+                    }
+                }
+            ],
+            "sequencing": {
+                "submitted_id": "TEST_SEQUENCING_PACBIO",
+                "sequencer" : {
+                    "identifier": "pacbio_revio_hifi"
+                }
+            }
+        }
+    ]
+}

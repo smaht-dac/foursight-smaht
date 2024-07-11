@@ -557,5 +557,22 @@
         "display": [
             "staging"
         ]
+    },
+    "check_file_set_library_sequencing_value": {
+        "title": "Checks FileSets Have Compatible Assay and Sequencer",
+        "group": "Audit Checks",
+        "schedule": {
+            "monday_checks": {
+                "data": {
+                    "kwargs": {
+                        "primary": true
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "staging"
+        ]
     }
 }

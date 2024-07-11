@@ -145,9 +145,11 @@ def check_for_new_submissions(connection):
 
 @check_function()
 def check_file_set_library_sequencing_value(connection):
-    '''
-    checks file_set to make sure they are linked to compatible library.assay and sequencing itesm
-    '''
+    """Weekly check of filesets to make sure they are linked to compatible library.assay and sequencing items.
+    
+    The list of mutually_dependent assays and sequencers may need to be updated as new techologies come out 
+    or are added to the portal.
+    """
     check = CheckResult(connection, 'check_file_set_library_sequencing_value')
     mutually_dependent = [
         ("bulk_fiberseq",["pacbio_revio_hifi"]), # Fiber-Seq and PacBio
@@ -155,32 +157,28 @@ def check_file_set_library_sequencing_value(connection):
         ("cas9_nanopore",["ont_minion_mk1b","ont_promethion_2_solo","ont_promethion_24"]), # Cas9 Nanopore and ONT
         ("bulk_ultralong_wgs",["ont_minion_mk1b","ont_promethion_2_solo","ont_promethion_24"]) # Ultralong WGS and ONT
     ]
+    incorrect = []
     for pair in mutually_dependent:
-        assay = pair.index(0)
-        sequencers = pair.index(1)
-        file_sets = ff_utils.search_metadata(
-            'search/?type=FileSet&frame=object',
-            key=connection.ff_keys)
-        # Concatenate searches together for assay and sequencing types
-        #search/?type=Biosource&cell_line.display_title=No+value&frame=object' +
-        #''.join(['&biosource_type=' + c for c in cell_line_types]),
-    missing = []
-    for file_set in file_sets:
-        assay = [library.get("assay","") for library in file_set.get("libraries","")]
-        platform = file_set.get("sequencing","").get("platform")
-
-        missing.append({'uuid': file_set['uuid'],
-                        '@id': file_set['@id'],
-                        'libraries': file_set.get('libraries'),
-                        'sequencing': file_set.get('sequencing'),
-                        'description': file_set.get('description'),
-                        'error': 'Missing cell_line OntologyTerm'})
-    check.full_output = missing
-    check.brief_output = [item['@id'] for item in missing]
-    if missing:
+        pair = mutually_dependent[0]
+        assay = pair[0]
+        sequencers = pair[1]
+        search_list = [f"search/?type=FileSet&libraries.assay.identifier={assay}"] + [f"&sequencing.sequencer.identifier!={sequencer}" for sequencer in sequencers]
+        search = "".join(search_list)
+        file_sets = ff_utils.search_metadata(search,key=connection.ff_keys)
+        if len(file_sets) != 0:
+            for file_set in file_sets:
+                incorrect.append({'uuid': file_set['uuid'],
+                    '@id': file_set['@id'],
+                    'description': file_set.get('description'),
+                    'assay': file_set.get("libraries",[]).get("assay",{}).get("identifier",""),
+                    'sequencer': file_set.get("sequencing",{}).get("sequencer",{}).get("identifier",""),
+                    'error': 'Incompatible assay and sequencing types'})
+    check.full_output = incorrect
+    check.brief_output = [item['@id'] for item in incorrect]
+    if incorrect:
         check.status = 'WARN'
-        check.summary = 'Cell line biosources found missing cell_line metadata'
+        check.summary = 'Filesets found with incompatible assay and sequencing'
     else:
         check.status = 'PASS'
-        check.summary = 'No cell line biosources are missing cell_line metadata'
+        check.summary = 'No filesets with incompatible assay and sequencing'
     return check
