@@ -7,12 +7,6 @@ foursight-smaht
 Change Log
 ----------
 
-0.8.9
-=====
-* 2024-08-22/dmichaels
-* Updated foursight-core version (from ^5.6.0) to ^5.6.1.
-
-
 0.8.8
 =====
 * Support for Python 3.12.
