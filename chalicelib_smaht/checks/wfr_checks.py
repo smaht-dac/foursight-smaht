@@ -105,7 +105,6 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
             formatted as YYYY-MM-DD
     """
     start = datetime.utcnow()
-    import pdb ; pdb.set_trace()  # noqa
     check = initialize_check("md5run_status", connection)
     check.action = "md5run_start"
     check.description = "Find files uploaded to S3 without MD5 checksum"
