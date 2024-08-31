@@ -712,14 +712,14 @@ files = [
 
 [[package]]
 name = "foursight-core"
-version = "5.6.1.1b1"
+version = "5.6.2"
 description = "Serverless Chalice Application for Monitoring"
 category = "main"
 optional = false
 python-versions = "<3.13,>=3.8.1"
 files = [
-    {file = "foursight_core-5.6.1.1b1-py3-none-any.whl", hash = "sha256:14bc137a9d886429aad27e00b6a4185db87fba4e8ca15d394b10eab2cda61753"},
-    {file = "foursight_core-5.6.1.1b1.tar.gz", hash = "sha256:bfd43348ef9a4fee72494e39633013475625cf69f02d6a20479e25a37fa40781"},
+    {file = "foursight_core-5.6.2-py3-none-any.whl", hash = "sha256:a51a6fc5484903be894377805fe9603cf076ae231951495577414b4c5e5da91f"},
+    {file = "foursight_core-5.6.2.tar.gz", hash = "sha256:6458e91455930772a9c4490ee1aa21857dc623975c37fdd104ddae46f958c850"},
 ]
 
 [package.dependencies]
@@ -2619,4 +2619,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "531eadf568692547d75d79ee808254d7bd4f729d93ec2c488397a532c4bcb53c"
+content-hash = "01fe16e083d2b188301d5e7b4de0677785b6653f30f980cf6833428e5e4a3659"
