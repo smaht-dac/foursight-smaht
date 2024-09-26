@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 from types import FunctionType
 from calendar import monthrange
 from collections import OrderedDict
+from collections import defaultdict
 from google.oauth2.service_account import Credentials
 from dcicutils import ff_utils, s3_utils
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
@@ -18,56 +19,66 @@ from dcicutils.misc_utils import PRINT
 
 
 DEFAULT_GOOGLE_API_CONFIG = {
-    "scopes" : [                                                # Descriptions from: https://developers.google.com/identity/protocols/googlescopes
+    "scopes": [                                                # Descriptions from: https://developers.google.com/identity/protocols/googlescopes
         'https://www.googleapis.com/auth/analytics.readonly',   # View your Google Analytics data
         'https://www.googleapis.com/auth/drive',                # View and manage the files in your Google Drive
         'https://www.googleapis.com/auth/drive.file',           # View and manage Google Drive files and folders that you have opened or created with this app
         'https://www.googleapis.com/auth/spreadsheets'          # View and manage your spreadsheets in Google Drive
 
     ],
-    # "analytics_property_id" : '421559857',                  # SMAHT - Localhost
-    # "analytics_property_id" : '422485570',                  # SMAHT - Test
-    "analytics_property_id" : '422474776',                  # SMAHT - Production
-    "analytics_page_size" : 10000,
-    "analytics_timezone" : "US/Eastern",                    # 4DN Analytics account is setup for EST time zone.
+    # "analytics_property_id": '421559857',                  # SMAHT - Localhost
+    # "analytics_property_id": '422485570',                  # SMAHT - Test
+    "analytics_property_id": '422474776',                  # SMAHT - Production
+    "analytics_page_size": 10000,
+    "analytics_timezone": "US/Eastern",                    # SMaHT Analytics account is setup for EST time zone.
     "analytics_to_tracking_item_fields_mapping": {          # For backwards-compatibility, we map the new GA4 fields to existing Tracking Item fields
-        'country'               : 'ga:country',
-        'sessions'              : 'ga:sessions',
-        'totalUsers'            : 'ga:users',
-        'screenPageViews'       : 'ga:pageviews',
-        'sessionsPerUser'       : 'ga:sessionsPerUser',
-        'averageSessionDuration': 'ga:avgSessionDuration',
-        'bounceRate'            : 'ga:bounceRate',
-        'eventCount'            : 'ga:totalEvents',
-        'session'               : 'ga:sessions',
-        'totalUsers'            : 'ga:users',
-        'customEvent:file_type' : 'ga:productVariant',
-        'customEvent:field_key' : 'ga:dimension3',
-        'customEvent:file_size' : 'ga:metric1',
-        'customEvent:downloads' : 'ga:metric2',
-        'customEvent:experiment_type'    : 'ga:dimension5',
-        'calcMetric_PercentRangeQueries' : 'ga:calcMetric_PercentRangeQueries',
-        'itemViewEvents'        : 'ga:productDetailViews',
-        'itemListClickEvents'   : 'ga:productListClicks',
-        'itemListViewEvents'    : 'ga:productListViews',
-        'itemsViewed'           : 'ga:productDetailViews',
-        'itemsClickedInList'    : 'ga:productListClicks',
-        'itemsViewedInList'     : 'ga:productListViews',
-        'itemsCheckedOut'       : 'ga:uniquePurchases',
-        'itemsPurchased'        : 'ga:uniquePurchases',
-        'itemName'              : 'ga:productName',
-        'itemId'                : 'ga:productSku',
-        'itemCategory2'         : 'ga:productCategoryLevel2',
-        'itemCategory3'         : 'ga:productCategoryLevel3',
-        'itemBrand'             : 'ga:productBrand',
-        'customEvent:lab'       : 'ga:productBrand',
-        'itemListName'          : 'ga:productListName',
-        'deviceCategory'        : 'ga:deviceCategory',
+        'country': 'country',
+        'city': 'city',
+        'sessions': 'sessions',
+        'totalUsers': 'unique_users',
+        'screenPageViews': 'page_views',
+        'sessionsPerUser': 'sessions_per_user',
+        'averageSessionDuration': 'avg_session_duration',
+        'bounceRate': 'bounce_rate',
+        'eventCount': 'total_events',
+        'session': 'sessions',
+        'totalUsers': 'unique_users',
+        'customEvent:file_type': 'file_type',
+        'customEvent:field_key': 'field',
+        'customEvent:file_size': 'downloads_size',
+        'customEvent:downloads': 'downloads_count',
+        'customEvent:experiment_type': 'assay_type',
+        'customEvent:dataset': 'dataset',
+        'calcMetric_PercentRangeQueries': 'range_queries',
+        'itemViewEvents': 'detail_views',
+        'itemListClickEvents': 'list_clicks',
+        'itemListViewEvents': 'list_views',
+        'itemsViewed': 'detail_views',
+        'itemsClickedInList': 'list_clicks',
+        'itemsViewedInList': 'list_views',
+        'itemsCheckedOut': 'downloads_count_with_range_queries',
+        'itemsPurchased': 'downloads_count_with_range_queries',
+        'itemName': 'file_title',
+        'itemId': 'file_item_id',
+        'itemCategory2': 'item_type_1',
+        'itemCategory3': 'item_type_2',
+        'itemCategory4': 'assay_type',
+        'itemCategory5': 'dataset',
+        'itemBrand': 'generated_by',
+        'itemVariant': 'file_type',
+        'itemAffiliation': 'sequencer',
+        'customEvent:sequencer': 'sequencer',
+        'customEvent:lab': 'generated_by',
+        'itemListName': 'source',
+        'deviceCategory': 'device_category',
+        'pageTitle': 'page_title',
+        'pagePathPlusQueryString': 'page_url'
     },
     "analytics_metric_type": {
         'calcMetric_PercentRangeQueries': 'TYPE_INTEGER'
     }
 }
+file_item_dict = None
 
 
 class _NestedGoogleServiceAPI:
@@ -125,10 +136,10 @@ class GoogleAPISyncer:
 
     def __init__(
         self,
-        ff_access_keys      = None,
-        google_api_key      = None,
-        s3UtilsInstance     = None,
-        extra_config        = DEFAULT_GOOGLE_API_CONFIG
+        ff_access_keys=None,
+        google_api_key=None,
+        s3UtilsInstance=None,
+        extra_config=DEFAULT_GOOGLE_API_CONFIG
     ):
         """Authenticate with Google APIs and initialize sub-class instances."""
         if s3UtilsInstance is None:
@@ -143,7 +154,7 @@ class GoogleAPISyncer:
         else:
             self._api_key = google_api_key
 
-        # os.environ['GRPC_DNS_RESOLVER'] = 'native'
+        os.environ['GRPC_DNS_RESOLVER'] = 'native'
 
         if not GoogleAPISyncer.validate_api_key_format(self._api_key):
             raise Exception("Google API Key is in invalid format.")
@@ -160,16 +171,14 @@ class GoogleAPISyncer:
 
         self.server = ff_access_keys['server']
         self.access_key = {
-            "key"   : ff_access_keys['key'],
+            "key": ff_access_keys['key'],
             "secret": ff_access_keys['secret']
         }
 
         # Init sub-class objects
-        self.analytics  = GoogleAPISyncer.AnalyticsAPI(self)
-        self.sheets     = GoogleAPISyncer.SheetsAPI(self)
-        self.docs       = GoogleAPISyncer.DocsAPI(self)
-
-
+        self.analytics = GoogleAPISyncer.AnalyticsAPI(self)
+        self.sheets = GoogleAPISyncer.SheetsAPI(self)
+        self.docs = GoogleAPISyncer.DocsAPI(self)
 
     class AnalyticsAPI(_NestedGoogleServiceAPI):
         """
@@ -202,7 +211,7 @@ class GoogleAPISyncer:
                 value = row.metric_values[metric_index].value
                 type = metric_dict.type_.name
 
-                #override type if necessary
+                # override type if necessary
                 metric_types = self.owner.extra_config.get("analytics_metric_type", {})
                 if metric_dict.name in metric_types:
                     type = metric_types[metric_dict.name]
@@ -210,62 +219,193 @@ class GoogleAPISyncer:
                 if type in ('TYPE_INTEGER', 'TYPE_STANDARD'):
                     value = int(float(value))
                 elif type in ('TYPE_FLOAT', 'TYPE_CURRENCY', 'TYPE_TIME', 'TYPE_SECONDS'):
-                    value = float(value)
-                elif type == 'TYPE_PERCENT': #not exists
+                    value = float(value)  # round(float(value), 2)
+                elif type == 'TYPE_PERCENT':  # not exists
                     value = float(value) / 100
                 return value
 
             def post_process_report_items(report_key_name, report_items):
                 """
-                post-process for legacy items collected after 2023-07-05, until end-of-August 23
+                post-process for legacy items
                 TODO: remove post processing when metrics collection gets stable
                 """
                 if report_key_name == 'top_files_downloaded':
                     for r_item in report_items:
-                        if 'ga:productSku' in r_item:
-                            continue
-                        r_item['ga:productName'] = r_item['customEvent:name']
+                        file_item = get_file_item(r_item)
+                        if "downloads_size" in r_item and "downloads_count" in r_item and r_item['downloads_size'] == 0:
+                            file_item = get_file_item(r_item)
+                            if file_item and 'file_size' in file_item:
+                                r_item['downloads_size'] = r_item['downloads_count'] * file_item['file_size']
+                        if 'file_title' not in r_item and 'customEvent:name' in r_item:
+                            r_item['file_title'] = r_item['customEvent:name']
                         del r_item['customEvent:name']
-                        file_item_type = r_item['customEvent:file_classification'].split('/', 2)[1]
-                        file_url = extract_name_and_uuid(r_item['linkUrl'])
-                        r_item['ga:productSku'] = file_url or '/{}/'.format(r_item['ga:productName'].split('.')[0])
-                        r_item['ga:productCategoryLevel2'] = file_item_type
+                        # annotated file name
+                        if len(r_item['file_title']) < 40:
+                            if file_item and 'annotated_filename' in file_item:
+                                r_item['file_title'] = file_item['annotated_filename']
+                        if 'file_item_id' not in r_item:
+                            file_url = extract_name_and_uuid(r_item['linkUrl'])
+                            r_item['file_item_id'] = file_url or '/{}/'.format(re.split('.|-', r_item['file_title'])[0])
+                        if 'item_type_1' not in r_item:
+                            file_item_type = r_item['customEvent:file_classification'].split('/', 2)[1]
+                            r_item['item_type_1'] = file_item_type
+                        if 'file_type' not in r_item or r_item['file_type'].lower() == 'other':
+                            if 'data_category' in file_item and len(file_item['data_category']) > 0:
+                                r_item['file_type'] = file_item['data_category'][0]
+                        if file_item is None or ("status" in file_item and file_item["status"] not in ["released", "public", "in review", "restricted", "obsolete", "archived", "retracted"]):
+                            r_item["to_be_deleted"] = True
                         del r_item['customEvent:file_classification']
+                        del r_item['linkUrl']
+                    report_items = list(filter(lambda r_item: "to_be_deleted" not in r_item or r_item["to_be_deleted"] is not True, report_items))
 
-                elif report_key_name == 'views_by_file':
+                if report_key_name == 'views_by_file':
                     for r_item in report_items:
                         file_item_types = r_item['itemCategory'].split('/', 2)
-                        if(len(file_item_types) > 1):
-                            r_item['ga:productCategoryLevel2'] = file_item_types[1]
+                        if (len(file_item_types) > 1):
+                            r_item['item_type_1'] = file_item_types[1]
                         del r_item['itemCategory']
 
-                elif report_key_name == 'file_downloads_by_assay_type':
+                if report_key_name == 'file_downloads_by_assay_type' or \
+                        report_key_name == 'file_downloads_by_dataset' or \
+                        report_key_name == 'file_downloads_by_sequencer' or \
+                        report_key_name == 'file_downloads_by_filetype' or \
+                        report_key_name == 'file_downloads_by_country' or \
+                        report_key_name == 'views_by_file':
+
                     for r_item in report_items:
-                        if "ga:dimension5" in r_item and r_item["ga:dimension5"] == '(not set)':
-                             r_item["ga:dimension5"] = "None"
+                        file_item = get_file_item(r_item)
+                        if "assay_type" in r_item:
+                            if r_item["assay_type"] == '(not set)':
+                                r_item["assay_type"] = "None"
+                            # TODO: remove code below and get_file_item after encoded-core 0.9.2+ is on data/staging
+                            if r_item["assay_type"] == "None":
+                                if file_item:
+                                    if file_item.get('data_generation_summary') and file_item['data_generation_summary'].get('assays'):
+                                        assays = file_item['data_generation_summary']['assays']
+                                        r_item["assay_type"] = assays[0] if len(assays) > 0 else "None"
+
+                        if "dataset" in r_item:
+                            if r_item["dataset"] == '(not set)':
+                                r_item["dataset"] = "None"
+                            # TODO: remove code below and get_file_item after encoded-core 0.9.2+ is on data/staging
+                            if r_item["dataset"] == "None":
+                                if file_item:
+                                    if file_item.get('dataset'):
+                                        r_item["dataset"] = file_item['dataset']
+
+                        if "sequencer" in r_item:
+                            if r_item["sequencer"] == '(not set)':
+                                r_item["sequencer"] = "None"
+                            # TODO: remove code below and get_file_item after encoded-core 0.9.2+ is on data/staging
+                            if r_item["sequencer"] == "None":
+                                if file_item:
+                                    if file_item.get('data_generation_summary') and file_item['data_generation_summary'].get('sequencing_platforms'):
+                                        sequencers = file_item['data_generation_summary']['sequencing_platforms']
+                                        r_item["sequencer"] = sequencers[0] if len(sequencers) > 0 else "None"
+
+                        if "downloads_size" in r_item and "downloads_count" in r_item and r_item['downloads_size'] == 0:
+                            if file_item and 'file_size' in file_item:
+                                r_item['downloads_size'] = r_item['downloads_count'] * file_item['file_size']
+
+                        if 'file_title' not in r_item or len(r_item['file_title']) < 40:
+                            if file_item and 'annotated_filename' in file_item:
+                                r_item['file_title'] = file_item['annotated_filename']
+
+                        # TODO: remove code below and get_file_item after encoded-core 0.9.2+ is on data/staging
+                        if file_item is None or ("status" in file_item and file_item["status"] not in ["released", "public", "in review", "restricted", "obsolete", "archived", "retracted"]):
+                            r_item["to_be_deleted"] = True
+                        if 'linkUrl' in r_item:
+                            del r_item['linkUrl']
+
+                    # TODO: remove code below and get_file_item after encoded-core 0.9.2+ is on data/staging
+                    report_items = list(filter(lambda r_item: "to_be_deleted" not in r_item or r_item["to_be_deleted"] is not True, report_items))
+                    key_to_field_map = {
+                        "file_downloads_by_assay_type": "assay_type",
+                        "file_downloads_by_dataset": "dataset",
+                        "file_downloads_by_filetype": "file_type",
+                        "file_downloads_by_sequencer": "sequencer",
+                        "file_downloads_by_country": "country"
+                    }
+
+                    if report_key_name in key_to_field_map:
+                        report_items = uniquify_download_report_items(key_to_field_map[report_key_name], report_items)
+
+                return report_items
+
+            # TODO: remove code below and get_file_item after encoded-core 0.9.2+ is on data/staging
+            def get_file_item(r_item):
+                global file_item_dict
+                file_item = None
+                if 'linkUrl' in r_item or 'file_item_id' in r_item:
+                    name_and_uuid = None
+                    if 'linkUrl' in r_item:
+                        name_and_uuid = extract_name_and_uuid(r_item['linkUrl'])
+                    if not name_and_uuid and 'file_item_id' in r_item:
+                        name_and_uuid = extract_name_and_uuid(r_item['file_item_id'])
+                    if name_and_uuid:
+                        file_uuid = name_and_uuid.strip('/').split('/')[1]
+                        # initialize files dict
+                        if not file_item_dict:
+                            search = "/search/?type=File&field=file_size&field=filename&field=data_category&field=dataset&" \
+                                "field=data_generation_summary&field=annotated_filename&field=uuid&field=status&frame=embedded&limit=all"
+                            PRINT("Retrieving all files...")
+                            # TODO: get from env. variables
+                            ff_key = {"key": "ABCDEFGH", "secret": "abcdefghijklmn", "server": "https://data.smaht.org/"}
+                            # ff_key = dict(self.owner.access_key, server=self.owner.server)
+                            files = ff_utils.search_metadata(search, key=ff_key, page_limit=200)
+                            PRINT("Files retrieved: {}".format(len(files)))
+                            file_item_dict = dict()
+                            for f in files:
+                                file_item_dict[f['uuid']] = f
+                            # file_item_dict = {obj['uuid']: obj for obj in files}
+                        if file_uuid in file_item_dict:
+                            file_item = file_item_dict[file_uuid]
+
+                return file_item
+
+            # TODO: remove code below and get_file_item after encoded-core 0.9.2+ is on data/staging
+            def uniquify_download_report_items(key_field, report_items):
+                # Using defaultdict to store results
+                merged_items = defaultdict(lambda: {'downloads_count': 0, 'downloads_size': 0, 'range_queries': 0})
+
+                # Iterate over each item and sum values for the same key_field_value
+                for item in report_items:
+                    key_field_value = item[key_field]
+                    merged_items[key_field_value]['downloads_count'] += item['downloads_count']
+                    merged_items[key_field_value]['downloads_size'] += item['downloads_size']
+                    merged_items[key_field_value]['range_queries'] += item['range_queries']
+
+                # Convert defaultdict to a regular list of dictionaries
+                result = [{key_field: key_field_value, **data} for key_field_value, data in merged_items.items()]
+                # import pdb; pdb.set_trace()
+                return result
 
             def extract_name_and_uuid(url):
-                ''' try to extract e.g. "/variant-calls/abcdefgh-abcde-40b5-945f-b2f924a1707b/" from 
+                ''' try to extract e.g. "/variant-calls/abcdefgh-abcde-40b5-945f-b2f924a1707b/" from
                     "https://xyz.smaht.org/variant-calls/abcdefgh-abcde-40b5-945f-b2f924a1707b/@@download/SMAVCABCDEFG.vc"
                 '''
-                pattern = r"(/[a-zA-Z-]+/[a-f0-9-]+\/)@@download/"
+                if not url:
+                    return None
+
+                # pattern = r"(/[a-zA-Z-]+/[a-f0-9-]+\/)@@download/"
+                pattern = r"(/[a-zA-Z-]+/[a-f0-9-]+\/)"
                 match = re.search(pattern, url)
 
                 if match:
                     return match.group(1)
                 else:
-                    return None                 
+                    return None
 
             def report_to_json_items(report):
-                # [(0, "ga:productName"), (1, "ga:productSku"), ...]
+                # [(0, "file_title"), (1, "file_item_id"), ...]
                 dimension_keys = list(enumerate(report.dimension_headers))
-                # [(0, { "name": "ga:productDetailViews", "type": "INTEGER" }), (1, { "name": "ga:productListClicks", "type": "INTEGER" }), ...]
+                # [(0, {"name": "detail_views", "type": "INTEGER"}), (1, {"name": "list_clicks", "type": "INTEGER"}), ...]
                 metric_key_definitions = list(enumerate(report.metric_headers))
                 return_items = []
                 for row_index, row in enumerate(report.rows):
-                    list_item = { try_convert_field(dk.name) : row.dimension_values[dk_index].value for (dk_index, dk) in dimension_keys }
+                    list_item = {try_convert_field(dk.name): row.dimension_values[dk_index].value for (dk_index, dk) in dimension_keys}
                     list_item = dict(list_item, **{
-                        try_convert_field(mk_dict.name) : format_metric_value(row, mk_dict, mk_index)
+                        try_convert_field(mk_dict.name): format_metric_value(row, mk_dict, mk_index)
                         for (mk_index, mk_dict) in metric_key_definitions
                     })
                     return_items.append(list_item)
@@ -286,29 +426,28 @@ class GoogleAPISyncer:
                 if 'daysAgo' in date_requested:
                     days_ago = int(date_requested.replace('daysAgo', ''))
                     return (today - timedelta(days=days_ago)).isoformat()
-                return date_requested # Assume already in ISO format.
+                return date_requested  # Assume already in ISO format.
 
             parsed_reports = OrderedDict()
 
             for idx, report_key_name in enumerate(raw_result['report_key_names']):
                 if save_raw_values:
                     parsed_reports[report_key_name] = {
-                        "request"       : raw_result['requests'][idx],
-                        "raw_report"    : raw_result['reports'][idx],
-                        "results"       : report_to_json_items(raw_result['reports'][idx])
+                        "request": raw_result['requests'][idx],
+                        "raw_report": raw_result['reports'][idx],
+                        "results": report_to_json_items(raw_result['reports'][idx])
                     }
                 else:
                     parsed_reports[report_key_name] = report_to_json_items(raw_result['reports'][idx])
                     # convert legacy fields
-                    post_process_report_items(report_key_name, parsed_reports[report_key_name])
-
+                    parsed_reports[report_key_name] = post_process_report_items(report_key_name, parsed_reports[report_key_name])
 
             for_date = None
 
             # `start_date` and `end_date` must be same for all requests (defined in Google API docs) in a batchRequest, so we're ok getting from just first 1
             if len(raw_result['requests']) > 0:
-                common_start_date   = raw_result['requests'][0].date_ranges[0].start_date or '7daysAgo'   # Google API default
-                common_end_date     = raw_result['requests'][0].date_ranges[0].end_date or 'yesterday'    # Google API default
+                common_start_date = raw_result['requests'][0].date_ranges[0].start_date or '7daysAgo'   # Google API default
+                common_end_date = raw_result['requests'][0].date_ranges[0].end_date or 'yesterday'    # Google API default
                 if common_start_date:
                     common_start_date = parse_google_api_date(common_start_date)
                 if common_end_date:
@@ -321,15 +460,15 @@ class GoogleAPISyncer:
                 for_date = common_start_date
 
             return {
-                "reports"        : parsed_reports,
-                "for_date"       : for_date,
-                "date_increment" : date_increment
+                "reports": parsed_reports,
+                "for_date": for_date,
+                "date_increment": date_increment
             }
 
         def __init__(self, syncer_instance):
             _NestedGoogleServiceAPI.__init__(self, syncer_instance)
             self.property_id = self.owner.extra_config.get('analytics_property_id', DEFAULT_GOOGLE_API_CONFIG['analytics_property_id'])
-            self._api =  BetaAnalyticsDataClient(credentials=self.owner.credentials) #build('analyticsreporting', 'v4', credentials=self.owner.credentials, cache_discovery=False)
+            self._api = BetaAnalyticsDataClient(credentials=self.owner.credentials)
 
         def get_report_provider_method_names(self):
             """
@@ -387,20 +526,23 @@ class GoogleAPISyncer:
                 raise Exception("Cant determine report key names.")
 
             def process_report_request_type(report_request, **kwargs):
-                if isinstance(report_request, str): # Convert string to dict by executing AnalyticsAPI[report_request](**kwargs)
-                    report_request = getattr(self, report_request)(execute=False, **{ k:v for k,v in kwargs.items() if k in ('start_date', 'end_date') })
+                if isinstance(report_request, str):  # Convert string to dict by executing AnalyticsAPI[report_request](**kwargs)
+                    report_request = getattr(self, report_request)(execute=False, **{k: v for k, v in kwargs.items() if k in ('start_date', 'end_date')})
 
-                return RunReportRequest(dict(report_request, # Add required common key/vals, see https://developers.google.com/analytics/devguides/reporting/core/v4/basics.
+                return RunReportRequest(dict(
+                    report_request,  # Add required common key/vals, see https://developers.google.com/analytics/devguides/reporting/core/v4/basics.
                     property='properties/' + self.property_id,
-                    limit=report_request.get('limit', self.owner.extra_config.get('analytics_page_size', DEFAULT_GOOGLE_API_CONFIG['analytics_page_size']))
+                    limit=report_request.get(
+                        'limit',
+                        self.owner.extra_config.get('analytics_page_size', DEFAULT_GOOGLE_API_CONFIG['analytics_page_size']))
                 ))
 
-            formatted_report_requests = [ process_report_request_type(r, **kwargs) for r in report_requests ]
+            formatted_report_requests = [process_report_request_type(r, **kwargs) for r in report_requests]
 
             # Google only permits 5 requests max within a batchRequest, so we need to chunk it up if over this -
             report_request_count = len(formatted_report_requests)
             if report_request_count > 5:
-                raw_result = { "reports" : [] }
+                raw_result = {"reports": []}
                 for chunk_num in range(report_request_count // 5 + 1):
                     chunk_num_start = chunk_num * 5
                     chunk_num_end = min([chunk_num_start + 5, report_request_count])
@@ -412,7 +554,7 @@ class GoogleAPISyncer:
                 raw_result['reports'] = self._api.batch_run_reports(BatchRunReportsRequest(requests=formatted_report_requests, property='properties/' + self.property_id)).reports
 
             # We get back as raw_result:
-            #   { "reports" : [{ "columnHeader" : { "dimensions" : [Xh, Yh, Zh], "metricHeaderEntries" : [{ "name" : 1h, "type" : "INTEGER" }, ...] }, "data" : { "rows": [{ "dimensions" : [X,Y,Z], "metrics" : [1,2,3,4] }] }  }, { .. }, ....] }
+            #   {"reports": [{"columnHeader": {"dimensions": [Xh, Yh, Zh], "metricHeaderEntries": [{"name": 1h, "type": "INTEGER"}, ...] }, "data": {"rows": [{"dimensions": [X,Y,Z], "metrics": [1,2,3,4] }] }  }, { .. }, ....] }
             raw_result['requests'] = formatted_report_requests
             raw_result['report_key_names'] = report_key_names
             # This transforms raw_result["reports"] into more usable data structure for ES and aggregation
@@ -443,7 +585,7 @@ class GoogleAPISyncer:
             iso_date = search_results[0]['google_analytics']['for_date']
 
             # TODO: Use date.fromisoformat() once we're on Python 3.7
-            year, month, day = iso_date.split('-', 2) # In python, months are indexed from 1 <= month <= 12, not 0 <= month <= 11 like in JS.
+            year, month, day = iso_date.split('-', 2)  # In python, months are indexed from 1 <= month <= 12, not 0 <= month <= 11 like in JS.
             return date(int(year), int(month), int(day))
 
         def fill_with_tracking_items(self, increment):
@@ -469,7 +611,7 @@ class GoogleAPISyncer:
                 if increment == 'daily':
                     # Fill up with last 60 days of Google Analytics data, if no other TrackingItem(s) yet exist.
                     # TODO: Set this to be ~45 for dev environment & 120 (or more) for production.
-                    last_tracking_item_date = today - timedelta(days=61)
+                    last_tracking_item_date = today - timedelta(days=270)
                     date_to_fill_from = last_tracking_item_date + timedelta(days=1)
                 elif increment == 'monthly':
                     # Fill up with last 12 months Google Analytics data, if no other TrackingItem(s) yet exist.
@@ -500,15 +642,15 @@ class GoogleAPISyncer:
                 PRINT("Filling daily items from", date_to_fill_from, "to", end_date)
 
                 if date_to_fill_from > end_date:
-                    return { 'created' : created_list, 'count' : counter }
+                    return {'created': created_list, 'count': counter}
 
                 while date_to_fill_from <= end_date:
                     for_date_str = date_to_fill_from.isoformat()
                     response = self.create_tracking_item(
-                        do_post_request = True,
-                        start_date      = for_date_str,
-                        end_date        = for_date_str,
-                        increment       = increment
+                        do_post_request=True,
+                        start_date=for_date_str,
+                        end_date=for_date_str,
+                        increment=increment
                     )
                     counter += 1
                     created_list.append(response['uuid'])
@@ -526,16 +668,16 @@ class GoogleAPISyncer:
                 PRINT("Filling monthly items from", date_to_fill_from, "to", str(end_year) + "-" + str(end_month))
 
                 if fill_year > end_year and fill_month > end_month:
-                    return { 'created' : created_list, 'count' : counter }
+                    return {'created': created_list, 'count': counter}
 
                 while fill_year < end_year or (fill_year == end_year and fill_month <= end_month):
                     for_date_start_str = date(fill_year, fill_month, 1).isoformat()
-                    for_date_end_str = date(fill_year, fill_month, monthrange(fill_year, fill_month)[1]).isoformat() # Last day of fill month
+                    for_date_end_str = date(fill_year, fill_month, monthrange(fill_year, fill_month)[1]).isoformat()  # Last day of fill month
                     response = self.create_tracking_item(
-                        do_post_request = True,
-                        start_date      = for_date_start_str,
-                        end_date        = for_date_end_str,
-                        increment       = increment
+                        do_post_request=True,
+                        start_date=for_date_start_str,
+                        end_date=for_date_end_str,
+                        increment=increment
                     )
                     counter += 1
                     created_list.append(response['uuid'])
@@ -545,7 +687,7 @@ class GoogleAPISyncer:
                         fill_month -= 12
                         fill_year += 1
 
-            return { 'created' : created_list, 'count' : counter }
+            return {'created': created_list, 'count': counter}
 
         def create_tracking_item(self, report_data=None, do_post_request=False, **kwargs):
             '''
@@ -559,7 +701,8 @@ class GoogleAPISyncer:
             if report_data is None:
                 report_data = self.query_reports(**kwargs)
 
-            # First make sure _all_ reporting methods defined on this class are included. Otherwise we might have tracking items in DB with missing data.
+            # First make sure _all_ reporting methods defined on this class are included.
+            # Otherwise we might have tracking items in DB with missing data.
             for method_name in self.get_report_provider_method_names():
                 if report_data['reports'].get(method_name) is None:
                     raise Exception("Not all potentially available data is included in report_data. Exiting.")
@@ -567,9 +710,9 @@ class GoogleAPISyncer:
                     raise Exception("Can only make tracking_item for report_data which does not contain extra raw report and request data, per the schema.")
 
             tracking_item = {
-                "status"            : "released",
-                "tracking_type"     : "google_analytics",
-                "google_analytics"  : report_data
+                "status": "released",
+                "tracking_type": "google_analytics",
+                "google_analytics": report_data
             }
             if do_post_request:
                 response = ff_utils.post_metadata(tracking_item, 'tracking-items', key=dict(self.owner.access_key, server=self.owner.server))
@@ -579,21 +722,26 @@ class GoogleAPISyncer:
 
         def session_base_request_json(self, start_date='yesterday', end_date='yesterday'):
             return {
-                'date_ranges' : [{ 'start_date' : start_date, 'end_date' : end_date }],
+                'date_ranges': [{'start_date': start_date, 'end_date': end_date}],
                 'metrics': [
-                    { 'name': 'sessions' },
-                    { 'name': 'totalUsers' },
-                    { 'name': 'screenPageViews' },
-                    { 'name': 'sessionsPerUser' },
-                    { 'name': 'averageSessionDuration' },
-                    { 'name': 'bounceRate' }
+                    {'name': 'sessions'},
+                    {'name': 'totalUsers'},
+                    {'name': 'screenPageViews'},
+                    {'name': 'sessionsPerUser'},
+                    {'name': 'averageSessionDuration'},
+                    {'name': 'bounceRate'}
                 ]
             }
 
         @report
         def sessions_by_country(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = self.session_base_request_json(start_date, end_date)
-            report_request_json["dimensions"] = [ { 'name': 'country' } ]
+            report_request_json["dimensions"] = [
+                {'name': 'country'},
+                {'name': 'city'},
+            ]
+            report_request_json['limit'] = 200
+
             if execute:
                 return self.query_reports([report_request_json])
             return report_request_json
@@ -601,7 +749,22 @@ class GoogleAPISyncer:
         @report
         def sessions_by_device_category(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = self.session_base_request_json(start_date, end_date)
-            report_request_json["dimensions"] = [ { 'name': 'deviceCategory' } ]
+            report_request_json["dimensions"] = [{'name': 'deviceCategory'}]
+            if execute:
+                return self.query_reports([report_request_json])
+            return report_request_json
+
+        @report
+        def sessions_by_page(self, start_date='yesterday', end_date='yesterday', execute=True):
+            report_request_json = self.session_base_request_json(start_date, end_date)
+            report_request_json["dimensions"] = [
+                {'name': 'pageTitle'},
+                {'name': 'pagePathPlusQueryString'}
+            ]
+            report_request_json["order_bys"] = [
+                {'metric': {'metric_name': 'screenPageViews'}, 'desc': True}
+            ]
+            report_request_json['limit'] = 300
             if execute:
                 return self.query_reports([report_request_json])
             return report_request_json
@@ -612,44 +775,48 @@ class GoogleAPISyncer:
         @report
         def views_by_file(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
-                'date_ranges' : [{ 'start_date' : start_date, 'end_date' : end_date }],
+                'date_ranges': [{'start_date': start_date, 'end_date': end_date}],
                 'metrics': [
-                    { 'name': 'itemsViewed' },
-                    { 'name': 'itemsClickedInList' },
-                    { 'name': 'itemsViewedInList' },
-                    { 'name': 'itemsPurchased' }, # Total downloads + range queries
+                    {'name': 'itemsViewed'},
+                    {'name': 'itemsClickedInList'},
+                    {'name': 'itemsViewedInList'},
+                    {'name': 'itemsPurchased'},  # Total downloads + range queries
                     # since GA4 not allows mix usage of Event and Item-Scoped metrics/dimensions, the dimensions below are cancelled
-                    # { 'name': 'customEvent:downloads' },
-                    # { 'name': 'customEvent:file_size' },
-                    # { 'name': 'calcMetric_PercentRangeQueries', 'expression': 'eventCount - customEvent:downloads' }
+                    # {'name': 'customEvent:downloads'},
+                    # {'name': 'customEvent:file_size'},
+                    # {'name': 'calcMetric_PercentRangeQueries', 'expression': 'eventCount - customEvent:downloads'}
                 ],
                 'dimensions': [
-                    { 'name': 'itemName' },
-                    { 'name': 'itemId' },
-                    { 'name': 'itemCategory' },
-                    { 'name': 'itemCategory2' },
-                    { 'name': 'itemCategory3' },
-                    { 'name': 'itemBrand' }
+                    # {'name': 'itemName'},  # TODO: remove after encoded-core 0.9.2+ on staging/data
+                    {'name': 'itemId'},   # TODO: remove after encoded-core 0.9.2+ on staging/data
+                    {'name': 'itemCategory'},
+                    {'name': 'itemCategory2'},
+                    {'name': 'itemCategory3'},
+                    {'name': 'itemCategory4'},  # assay type
+                    {'name': 'itemCategory5'},  # dataset
+                    {'name': 'itemBrand'},
+                    {'name': 'itemVariant'},  # file type
+                    {'name': 'itemAffiliation'}  # sequencing platform
                 ],
-                "order_bys" : [
-                    { 'metric' : { 'metric_name': 'itemsViewed' }, 'desc': True },
-                    { 'metric' : { 'metric_name': 'itemsPurchased' }, 'desc': True }
+                "order_bys": [
+                    {'metric': {'metric_name': 'itemsViewed'}, 'desc': True},
+                    {'metric': {'metric_name': 'itemsPurchased'}, 'desc': True}
                 ],
-                'dimension_filter' : {
+                'dimension_filter': {
                     'and_group': {
                         'expressions': [
                             {
-                                "filter" : { 
-                                    'field_name' : "itemCategory", 
-                                    'string_filter': { 
-                                        "value" : "File", 
-                                        "match_type" : "EXACT" 
-                                    } 
+                                "filter": {
+                                    'field_name': "itemCategory",
+                                    'string_filter': {
+                                        "value": "File",
+                                        "match_type": "EXACT"
+                                    }
                                 }
-                        }]
+                            }]
                     }
                 },
-                'limit' : 100
+                'limit': 300
             }
             if execute:
                 return self.query_reports([report_request_json])
@@ -661,33 +828,32 @@ class GoogleAPISyncer:
         @report
         def fields_faceted(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
-                'date_ranges' : [{ 'start_date' : start_date, 'end_date' : end_date }],
+                'date_ranges': [{'start_date': start_date, 'end_date': end_date}],
                 'dimensions': [
-                    #{ 'name': 'ga:eventLabel' }, # Too many distinct terms if we make it this granular.
-                    { 'name': 'customEvent:field_key' }, # Field Name
-                    #{ 'name': 'ga:dimension' + str(self.owner.extra_config["analytics_dimension_name_map"].get("term", 4)) }  # Term Name # # Too many distinct terms if we make it this granular.
+                    {'name': 'customEvent:field_key'},  # Field Name
+                    # {'name': 'customEvent:field_value'},  # Field Value
                 ],
                 'metrics': [
-                    { 'name': 'eventCount' },
-                    { 'name': 'sessions' },
-                    { 'name': 'totalUsers' }
+                    {'name': 'eventCount'},
+                    {'name': 'sessions'},
+                    {'name': 'totalUsers'}
                 ],
-                'order_bys' : [
-                    { 'metric' : { 'metric_name': 'eventCount' }, 'desc': True }
+                'order_bys': [
+                    {'metric': {'metric_name': 'eventCount'}, 'desc': True}
                 ],
-                'dimension_filter' : {
+                'dimension_filter': {
                     'and_group': {
                         'expressions': [
                             {
-                                "filter" : { 
-                                    'field_name' : "customEvent:action", 
-                                    'string_filter': { 
-                                        "value" : "Set Filter", 
-                                        "match_type" : "EXACT",
+                                "filter": {
+                                    'field_name': "customEvent:action",
+                                    'string_filter': {
+                                        "value": "Set Filter",
+                                        "match_type": "EXACT",
                                         "case_sensitive": True
-                                    } 
+                                    }
                                 }
-                        }]
+                            }]
                     }
                 }
             }
@@ -702,55 +868,76 @@ class GoogleAPISyncer:
         def file_download_base_request_json(self, start_date='yesterday', end_date='yesterday'):
             '''Helper func for DRYness'''
             return {
-                "date_ranges" : [{ 'start_date' : start_date, 'end_date' : end_date }],
+                "date_ranges": [{"start_date": start_date, "end_date": end_date}],
                 "metrics": [
                     # Downloads
-                    { 'name': 'customEvent:downloads' },
+                    {"name": "customEvent:downloads"},
                     # Filesize
-                    { 'name': 'customEvent:file_size' },
+                    {"name": "customEvent:file_size"},
                     # Range queries (we can't change calculated metric name in analytics after created so.. ya)
-                    { 'name': 'calcMetric_PercentRangeQueries', 'expression': 'eventCount - customEvent:downloads' },
-                    { 'name': 'itemViewEvents' },
-                    { 'name': 'itemListClickEvents' },
-                    { 'name': 'itemListViewEvents' }
+                    {"name": "calcMetric_PercentRangeQueries", "expression": "eventCount - customEvent:downloads"},
+                    # since the file download event is triggered by the backend, the metrics below are never sent and always 0 thus commented
+                    # {'name': 'itemViewEvents'},
+                    # {'name': 'itemListClickEvents'},
+                    # {'name': 'itemListViewEvents'}
                 ],
-                'dimension_filter' : {
-                    'and_group': {
-                        'expressions': [
+                "dimension_filter": {
+                    "and_group": {
+                        "expressions": [
                             {
-                                # since GA4 not allows mix usage of Event and Item-Scoped metrics/dimensions, this filter is replaced with the one below
-                                # "filter" : { 
-                                #     'field_name' : "itemCategory", 
-                                #     'string_filter': { 
-                                #         "value" : "File", 
-                                #         "match_type" : "EXACT",
-                                #         "case_sensitive": True
-                                #     } 
-                                # }
-                                "filter" : { 
-                                    'field_name' : "customEvent:source", 
-                                    'string_filter': { 
-                                        "value" : "Serverside File Download",
-                                        "match_type" : "EXACT",
-                                        "case_sensitive": True
-                                    } 
+                                "or_group": {
+                                    "expressions": [
+                                        {
+                                            "filter": {
+                                                "field_name": "customEvent:source",
+                                                "string_filter": {
+                                                    "value": "Serverside File Download",
+                                                    "match_type": "EXACT",
+                                                    "case_sensitive": False
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "filter": {
+                                                "field_name": "eventName",
+                                                "string_filter": {
+                                                    "value": "purchase",
+                                                    "match_type": "EXACT",
+                                                    "case_sensitive": False
+                                                }
+                                            }
+                                        }
+                                    ]
                                 }
-                        }]
+                            },
+                            {
+                                "not_expression": {
+                                    "filter": {
+                                        "field_name": "customEvent:file_type",
+                                        "string_filter": {
+                                            "value": "other",
+                                            "match_type": "EXACT",
+                                            "case_sensitive": False
+                                        }
+                                    }
+                                }
+                            }
+                        ]
                     }
                 },
-                'order_bys' : [
-                    { 'metric' : { 'metric_name': 'customEvent:downloads' }, 'desc': True },
-                    { 'metric' : { 'metric_name': 'calcMetric_PercentRangeQueries' }, 'desc': True },
-                    { 'metric' : { 'metric_name': 'itemViewEvents' }, 'desc': True },
-                    { 'metric' : { 'metric_name': 'itemListClickEvents' }, 'desc': True },
-                    { 'metric' : { 'metric_name': 'itemListViewEvents' }, 'desc': True }
+                "order_bys": [
+                    {"metric": {"metric_name": "customEvent:downloads"}, "desc": True},
+                    {"metric": {"metric_name": "calcMetric_PercentRangeQueries"}, "desc": True},
+                    # {"metric": {"metric_name": "itemViewEvents"}, "desc": True },
+                    # {"metric": {"metric_name": "itemListClickEvents"}, "desc": True },
+                    # {"metric": {"metric_name": "itemListViewEvents"}, "desc": True }
                 ]
             }
 
         @report
         def file_downloads_by_country(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = self.file_download_base_request_json(start_date, end_date)
-            report_request_json["dimensions"] = [ { 'name': 'country' } ]
+            report_request_json["dimensions"] = [{'name': 'country'}]
             if execute:
                 return self.query_reports([report_request_json])
             return report_request_json
@@ -758,7 +945,10 @@ class GoogleAPISyncer:
         @report
         def file_downloads_by_filetype(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = self.file_download_base_request_json(start_date, end_date)
-            report_request_json["dimensions"] = [ { 'name': 'customEvent:file_type' } ] # === 'filetype'
+            report_request_json["dimensions"] = [
+                {'name': 'customEvent:file_type'},
+                {'name': 'linkUrl'}  # TODO: remove after encoded-core 0.9.2+ on staging/data
+            ]
             if execute:
                 return self.query_reports([report_request_json])
             return report_request_json
@@ -767,7 +957,30 @@ class GoogleAPISyncer:
         def file_downloads_by_assay_type(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = self.file_download_base_request_json(start_date, end_date)
             report_request_json["dimensions"] = [
-                { "name" : 'customEvent:experiment_type' }
+                {"name": 'customEvent:experiment_type'},
+                {'name': 'linkUrl'}  # TODO: remove after encoded-core 0.9.2+ on staging/data
+            ]
+            if execute:
+                return self.query_reports([report_request_json])
+            return report_request_json
+
+        @report
+        def file_downloads_by_dataset(self, start_date='yesterday', end_date='yesterday', execute=True):
+            report_request_json = self.file_download_base_request_json(start_date, end_date)
+            report_request_json["dimensions"] = [
+                {"name": 'customEvent:dataset'},
+                {'name': 'linkUrl'}  # TODO: remove after encoded-core 0.9.2+ on staging/data
+            ]
+            if execute:
+                return self.query_reports([report_request_json])
+            return report_request_json
+
+        @report
+        def file_downloads_by_sequencer(self, start_date='yesterday', end_date='yesterday', execute=True):
+            report_request_json = self.file_download_base_request_json(start_date, end_date)
+            report_request_json["dimensions"] = [
+                {"name": 'customEvent:sequencer'},
+                {'name': 'linkUrl'}  # TODO: remove after encoded-core 0.9.2+ on staging/data
             ]
             if execute:
                 return self.query_reports([report_request_json])
@@ -779,17 +992,17 @@ class GoogleAPISyncer:
             report_request_json = self.file_download_base_request_json(start_date, end_date)
             # since GA4 not allows mix usage of Event and Item-Scoped metrics/dimensions, dimensions below are replaced with the one below
             # report_request_json["dimensions"] = [
-            #     { 'name': 'itemName' },
-            #     { 'name': 'itemId' },
-            #     { 'name': 'itemCategory2' },
-            #     { 'name': 'itemBrand' }
+            #     {'name': 'itemName'},
+            #     {'name': 'itemId'},
+            #     {'name': 'itemCategory2'},
+            #     {'name': 'itemBrand'}
             # ]
             report_request_json["dimensions"] = [
-                { 'name': 'customEvent:name' },
-                { 'name': 'customEvent:lab' },
-                { 'name': 'customEvent:file_classification' },
-                { 'name': 'customEvent:file_type' },
-                { 'name': 'linkUrl' }
+                {'name': 'customEvent:name'},
+                {'name': 'customEvent:lab'},
+                {'name': 'customEvent:file_classification'},
+                {'name': 'customEvent:file_type'},
+                {'name': 'linkUrl'}
             ]
             report_request_json["limit"] = 100
             if execute:
@@ -802,46 +1015,46 @@ class GoogleAPISyncer:
         @report
         def metadata_tsv_by_country(self, start_date='yesterday', end_date='yesterday', execute=True):
             report_request_json = {
-                'date_ranges' : [{ 'start_date' : start_date, 'end_date' : end_date }],
+                'date_ranges': [{'start_date': start_date, 'end_date': end_date}],
                 'metrics': [
-                    { 'name': 'itemsCheckedOut' },
+                    {'name': 'itemsCheckedOut'},
                 ],
                 'dimensions': [
-                    { 'name': 'country' },
-                    { 'name': 'itemListName' }
+                    {'name': 'country'},
+                    {'name': 'itemListName'},
+                    {'name': 'itemVariant'},
+                    {'name': 'itemCategory4'},
+                    {'name': 'itemCategory5'},
                 ],
-                "order_bys" : [
-                    { 'metric' : { 'metric_name': 'itemsCheckedOut' }, 'desc': True },
+                "order_bys": [
+                    {'metric': {'metric_name': 'itemsCheckedOut'}, 'desc': True},
                 ],
-                'dimension_filter' : {
+                'dimension_filter': {
                     'and_group': {
                         'expressions': [
                             {
-                                "filter" : { 
-                                    'field_name' : "customEvent:source", 
-                                    'string_filter': { 
-                                        "value" : "SelectedFilesDownloadModal", 
-                                        "match_type" : "EXACT" 
-                                    } 
+                                "filter": {
+                                    'field_name': "customEvent:source",
+                                    'string_filter': {
+                                        "value": "SelectedFilesDownloadModal",
+                                        "match_type": "EXACT"
+                                    }
                                 }
-                        }]
+                            }]
                     }
                 },
-                'limit' : 100
+                'limit': 100
             }
             if execute:
                 return self.query_reports([report_request_json])
             return report_request_json
 
-
     class SheetsAPI(_NestedGoogleServiceAPI):
         '''
         Use this sub-class to help query, read, edit, and analyze spreadsheet data, which will be returned in form of multi-dimensional JSON array.
-
         TODO: Implement
         '''
         pass
-
 
     class DocsAPI(_NestedGoogleServiceAPI):
         '''
@@ -917,13 +1130,11 @@ if __name__ == "__main__":
 No unit tests are setup since data in Google Analytics will vary day-by-day.
 Instead, \033[1mmanually compare results of output vs data shown in analytics UI\033[0m to assert.
     >>> google.analytics.file_downloads_by_country()
-    <<< \x1b[3m{ ..., "reports" : { "file_downloads_by_country" : [ ..., {'ga:country': 'China', 'ga:metric2': 0, 'ga:metric1': 11877317, 'ga:calcMetric_PercentRangeQueries': 67, 'ga:productDetailViews': 1, 'ga:productListClicks': 0, 'ga:productListViews': 69}, ... ] }, ... }\x1b[23m
+    <<< \x1b[3m{ ..., "reports": {"file_downloads_by_country": [ ..., {'country': 'China', 'downloads_count': 0, 'downloads_size': 11877317, 'range_queries': 67, 'detail_views': 1, 'list_clicks': 0, 'list_views': 69}, ... ] }, ... }\x1b[23m
     >>> google.analytics.file_downloads_by_filetype()
     <<< \x1b[3m{ ... JSON object with report info ... }\x1b[23m
 
 \033[1mCheck to ensure data aligns with analytics\033[0m, e.g. -
-    >>> res_search1 = google.analytics.search_search_queries()
-    >>> res_search1["reports"]["search_search_queries"]
     >>> res_facets1 = google.analytics.fields_faceted()
     >>> res_facets1["reports"]["fields_faceted"]
 
@@ -936,6 +1147,3 @@ Instead, \033[1mmanually compare results of output vs data shown in analytics UI
     '''
 
     PRINT(nextmsg)
-
-
-
