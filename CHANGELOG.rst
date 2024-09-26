@@ -83,7 +83,6 @@ Change Log
 * Add lifecycle management checks
 
 
-
 0.4.0
 =====
 * Minor UI fix to Ingestion page (foursight-core).
