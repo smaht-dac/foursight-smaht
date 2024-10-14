@@ -7,6 +7,12 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.9
+=====
+* 2024-10-11/dmichaels
+* Updated dcicutils version (8.16.1) for vulnerabilities.
+
+
 0.8.8
 =====
 * Support for Python 3.12.
