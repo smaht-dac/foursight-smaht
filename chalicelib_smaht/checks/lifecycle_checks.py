@@ -70,8 +70,17 @@ def patch_file_lifecycle_status(connection, **kwargs):
     action_logs["logs"] = []
     action_logs["error"] = []
 
-    files = check_output.get("files_to_update", [])
+    # update the last_checked property of files that do not require lifecycle update
+    files_without_update = check_output.get("files_without_update", [])
+    for file_uuid in files_without_update:
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        patch_dict = {
+            "s3_lifecycle_last_checked": today,
+        }
+        ff_utils.patch_metadata(patch_dict, file_uuid, key=my_auth)
 
+
+    files = check_output.get("files_to_update", [])
     for file in files:
         now = lifecycle_utils.get_datetime_utcnow()
         if (now-start).seconds > LAMBDA_LIMIT:
