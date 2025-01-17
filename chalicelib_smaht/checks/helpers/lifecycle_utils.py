@@ -81,7 +81,6 @@ def check_file_lifecycle_status(
     search_query_base = (
         "/search/?type=File"
         "&status%21=deleted"
-        "&status%21=archived"
         "&status%21=uploading"
         "&status%21=to+be+uploaded+by+workflow"
         "&s3_lifecycle_category%21=No+value"
