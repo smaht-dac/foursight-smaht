@@ -10,7 +10,7 @@ Change Log
 0.8.10
 ======
 * Make sure that files that don't require lifecycle updates receive an updated `s3_lifecycle_last_checked`` property.
-
+* Pull in latest dependencies (especially dcicutils 8.16.6)
 
 0.8.9
 =====
