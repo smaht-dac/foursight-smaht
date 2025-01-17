@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.10
+======
+* Make sure that files that don't require lifecycle updated get and updates s3_lifecycle_last_checked property
+
+
 0.8.9
 =====
 * 2024-10-11/dmichaels
