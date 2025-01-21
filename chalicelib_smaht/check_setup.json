@@ -548,5 +548,22 @@
         "display": [
             "<env-name>"
         ]
+    },
+    "check_tissue_sample_properties": {
+        "title": "Check Tissue Sample properties",
+        "group": "Audit Checks",
+        "schedule": {
+            "monday_checks": {
+                "<env-name>": {
+                    "kwargs": {
+                        "primary": true
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "<env-name>"
+        ]
     }
 }
