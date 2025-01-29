@@ -48,7 +48,7 @@ DEFAULT_LIFECYCLE_POLICY = {
     },
     SHORT_TERM_ARCHIVE: {
         MOVE_TO_DEEP_ARCHIVE_AFTER: 0,
-        EXPIRE_AFTER: 12,
+        EXPIRE_AFTER: 9,
     },
     LONG_TERM_ARCHIVE: {
         MOVE_TO_DEEP_ARCHIVE_AFTER: 0,
@@ -81,7 +81,6 @@ def check_file_lifecycle_status(
     search_query_base = (
         "/search/?type=File"
         "&status%21=deleted"
-        "&status%21=archived"
         "&status%21=uploading"
         "&status%21=to+be+uploaded+by+workflow"
         "&s3_lifecycle_category%21=No+value"
