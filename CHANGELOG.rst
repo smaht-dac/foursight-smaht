@@ -7,10 +7,21 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.11
+======
+* Removed tests/checks/helpers/test_wfr_utils.py (just a single import) which was causing tests to fail with:
+  ERROR collecting tests/checks/helpers/test_wfr_utils.py
+  import file mismatch: imported module 'test_wfr_utils' has
+  this __file__ attribute: /Users/dmichaels/repos/foursight-smaht/tests/checks/test_wfr_utils.py
+  which is not the same as the test file we want to collect:
+  /Users/dmichaels/repos/foursight-smaht/tests/checks/helpers/test_wfr_utils.py
+
+
 0.8.10
 ======
 * Make sure that files that don't require lifecycle updates receive an updated `s3_lifecycle_last_checked`` property.
 * Pull in latest dependencies (especially dcicutils 8.16.6)
+
 
 0.8.9
 =====
