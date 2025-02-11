@@ -143,12 +143,15 @@ def check_for_new_submissions(connection):
     return check
 
 
-@check_function()
+@check_function(last_mod_date=None)
 def check_tissue_sample_properties(connection, **kwargs):
     """Weekly check of GCC-submitted tissue samples to make sure they match the metadata from corresponding TPC-submitted tissue sample item.
     
     """
     check = CheckResult(connection, 'check_tissue_sample_properties')
+    # if true will run on all replicate sets
+
+    last_mod_date = kwargs['last_mod_date']
     check_properties = [
         "category",
         "sample_sources",
@@ -156,7 +159,9 @@ def check_tissue_sample_properties(connection, **kwargs):
         "core_size"
     ]
     incorrect = []
-    search_url = "search/?type=TissueSample&submission_centers.display_title=NDRI+TPC"
+    search_url = "search/?type=TissueSample&submission_centers.display_title=NDRI+TPC&limit=500"
+    if last_mod_date:
+        search_url += '&last_modified.date_modified.from={}'.format(last_mod_date)
     tpc_tissue_samples = ff_utils.search_metadata(search_url,key=connection.ff_keys)
     for tissue_sample in tpc_tissue_samples:
         external_id = tissue_sample['external_id']
@@ -168,7 +173,7 @@ def check_tissue_sample_properties(connection, **kwargs):
                 incorrect.append({'uuid': dup_sample['uuid'],
                     '@id': dup_sample['@id'],
                     'description': dup_sample.get('description'),
-                    'error': 'Multiple tissue sample items for one TPC-submitted tissue sample'})
+                    'error': f"Multiple tissue sample items for one TPC-submitted tissue sample {tissue_sample.get("accession")}" })
         for check_property in check_properties:
             if check_property in gcc_tissue_sample and check_property in tissue_sample:
                 if gcc_tissue_sample[check_property] != tissue_sample[check_property]:
