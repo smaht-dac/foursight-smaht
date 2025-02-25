@@ -159,9 +159,11 @@ def check_tissue_sample_properties(connection, **kwargs):
         "core_size"
     ]
     incorrect = []
-    search_url = "search/?type=TissueSample&submission_centers.display_title=NDRI+TPC&limit=500"
+    search_url = "search/?type=TissueSample&submission_centers.display_title=NDRI+TPC"
     if last_mod_date:
-        search_url += '&last_modified.date_modified.from={}'.format(last_mod_date)
+        search_url += f"&last_modified.date_modified.from={last_mod_date}"
+    else:
+        search_url += "&limit=500"
     tpc_tissue_samples = ff_utils.search_metadata(search_url,key=connection.ff_keys)
     for tissue_sample in tpc_tissue_samples:
         external_id = tissue_sample['external_id']
@@ -173,7 +175,7 @@ def check_tissue_sample_properties(connection, **kwargs):
                 incorrect.append({'uuid': dup_sample['uuid'],
                     '@id': dup_sample['@id'],
                     'description': dup_sample.get('description'),
-                    'error': f"Multiple tissue sample items for one TPC-submitted tissue sample {tissue_sample.get("accession")}" })
+                    'error': f"Multiple tissue sample items for one TPC-submitted tissue sample {tissue_sample.get('accession')}"})
         for check_property in check_properties:
             if check_property in gcc_tissue_sample and check_property in tissue_sample:
                 if gcc_tissue_sample[check_property] != tissue_sample[check_property]:
@@ -181,7 +183,7 @@ def check_tissue_sample_properties(connection, **kwargs):
                         '@id': gcc_tissue_sample['@id'],
                         'description': gcc_tissue_sample.get('description'),
                         check_property: gcc_tissue_sample.get(check_property),
-                        'error': 'Inconsistent metadata properties'})
+                        'error': f"Metadata properties inconsistent with TPC-submitted tissue sample {tissue_sample.get('accession')}"})
     check.full_output = incorrect
     check.brief_output = [item['@id'] for item in incorrect]
     if incorrect:

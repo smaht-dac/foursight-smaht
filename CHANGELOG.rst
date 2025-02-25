@@ -7,6 +7,12 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.12.b1
+=========
+* Added check to checks/audit_checks.py `check_tissue_sample_properties` that is a weekly check of GCC/TTD-submitted tissue samples to make sure they match particular metadata from corresponding TPC-submitted tissue sample item (with a matching external_id)
+* Also checks for more than one GCC/TTD-submitted tissue sample corresponding to one TPC-submitted tissue sample, as they should be one-to-one and would indicate a mislabel
+
+
 0.8.11
 ======
 * Removed tests/checks/helpers/test_wfr_utils.py (just a single import) which was causing tests to fail with:
