@@ -141,3 +141,55 @@ def check_for_new_submissions(connection):
                 'submission_count': current_result_count
             }
     return check
+
+
+@check_function(last_mod_date=None)
+def check_tissue_sample_properties(connection, **kwargs):
+    """Weekly check of GCC-submitted tissue samples to make sure they match the metadata from corresponding TPC-submitted tissue sample item.
+    
+    """
+    check = CheckResult(connection, 'check_tissue_sample_properties')
+    # if true will run on all replicate sets
+
+    last_mod_date = kwargs['last_mod_date']
+    check_properties = [
+        "category",
+        "sample_sources",
+        "preservation_type",
+        "core_size"
+    ]
+    incorrect = []
+    search_url = "search/?type=TissueSample&submission_centers.display_title=NDRI+TPC"
+    if last_mod_date:
+        search_url += f"&last_modified.date_modified.from={last_mod_date}"
+    else:
+        search_url += "&limit=500"
+    tpc_tissue_samples = ff_utils.search_metadata(search_url,key=connection.ff_keys)
+    for tissue_sample in tpc_tissue_samples:
+        external_id = tissue_sample['external_id']
+        gcc_search_url = f"search/?type=TissueSample&submission_centers.display_title!=NDRI+TPC&external_id={external_id}"
+        gcc_tissue_samples = ff_utils.search_metadata(gcc_search_url,key=connection.ff_keys)
+        gcc_tissue_sample = gcc_tissue_samples[0]
+        if len(gcc_tissue_samples) > 1:
+            for dup_sample in gcc_tissue_samples:
+                incorrect.append({'uuid': dup_sample['uuid'],
+                    '@id': dup_sample['@id'],
+                    'description': dup_sample.get('description'),
+                    'error': f"Multiple tissue sample items for one TPC-submitted tissue sample {tissue_sample.get('accession')}"})
+        for check_property in check_properties:
+            if check_property in gcc_tissue_sample and check_property in tissue_sample:
+                if gcc_tissue_sample[check_property] != tissue_sample[check_property]:
+                    incorrect.append({'uuid': gcc_tissue_sample['uuid'],
+                        '@id': gcc_tissue_sample['@id'],
+                        'description': gcc_tissue_sample.get('description'),
+                        check_property: gcc_tissue_sample.get(check_property),
+                        'error': f"Metadata properties inconsistent with TPC-submitted tissue sample {tissue_sample.get('accession')}"})
+    check.full_output = incorrect
+    check.brief_output = [item['@id'] for item in incorrect]
+    if incorrect:
+        check.status = 'WARN'
+        check.summary = 'TissueSample found with inconsistent metadata'
+    else:
+        check.status = 'PASS'
+        check.summary = 'No tissue samples with inconsistent metadata'
+    return check
