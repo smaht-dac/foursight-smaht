@@ -30,13 +30,17 @@ def untagged_donors_with_released_files(connection, **kwargs):
     wait = round(random.uniform(0.1, random_wait), 1)
     time.sleep(wait)
     QUERY_STEM = "search/?type=File&dataset=tissue&field=donors"
-    status_str = ''.join(f"status={s}" for s in constants.RELEASED_FILE_STATUSES)
+    status_str = ''.join(f"&status={s}" for s in constants.RELEASED_FILE_STATUSES)
     query = QUERY_STEM + status_str
     files = ff_utils.search_metadata(query, key=connection.ff_keys)
     unique_donor_ids = list({d["uuid"] for f in files for d in f.get("donors", []) if "uuid" in d})
     donors_with_released_files = [ff_utils.get_metadata(did, key=connection.ff_keys) for did in unique_donor_ids]
-    donors_to_tag = wr_utils.filter_items_by_properties(
-        donors_with_released_files, {"study": "Production", "tags": constants.DONOR_W_FILES_TAG})
+    # first we are excluding donors that already have the tag and then including only those in Production study
+    donors_to_tag = wr_utils.include_items_with_properties(
+        wr_utils.exclude_items_with_properties(donors_with_released_files, {"tags": constants.DONOR_W_FILES_TAG}),
+        {"study": "Production"})
+    donors_to_tag.extend([d.get('protected_donor') for d in donors_to_tag if
+                          ('protected_donor' in d and constants.DONOR_W_FILES_TAG not in d.get('tags', []))])
 
     if not donors_to_tag:
         check.allow_action = False
@@ -52,6 +56,7 @@ def untagged_donors_with_released_files(connection, **kwargs):
     check.full_output = {'info': donor_info, 'uuids': uuids}
     check.status = 'WARN'
     check.summary = 'Donors with released files need tagging'
+    return check
 
 
 @action_function()
