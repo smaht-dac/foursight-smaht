@@ -87,7 +87,7 @@ def check_validation_errors(connection, **kwargs):
 
 
 @check_function()
-def check_submitted_md5(connection):
+def check_submitted_md5(connection, **kwargs):
     """ Check that any submitted md5s are consistent with the ones we generated """
     check = CheckResult(connection, 'check_submitted_md5')
 
@@ -111,7 +111,7 @@ def check_submitted_md5(connection):
 
 
 @check_function()
-def check_for_new_submissions(connection):
+def check_for_new_submissions(connection, **kwargs):
     """ Weekly check that will compare against the previous week to determine if any new submissions
         need attention
     """

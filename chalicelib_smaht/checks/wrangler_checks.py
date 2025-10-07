@@ -15,10 +15,74 @@ from foursight_core.checks.helpers import wrangler_utils
 # individually - they're now part of class Decorators in foursight-core::decorators
 # that requires initialization with foursight prefix.
 from .helpers.confchecks import *
-
+from .helpers import wrangler_utils as wr_utils
+from .helpers import constants
 
 # use a random number to stagger checks
 random_wait = 20
+
+
+@check_function(action="tag_donors_with_released_files")
+def untagged_donors_with_released_files(connection, **kwargs):
+    check = CheckResult(connection, 'untagged_donors_with_released_files')
+    check.action = "tag_donors_with_released_files"
+    check.allow_action = False
+    wait = round(random.uniform(0.1, random_wait), 1)
+    time.sleep(wait)
+    QUERY_STEM = "search/?type=File&dataset=tissue&field=donors"
+    status_str = ''.join(f"status={s}" for s in constants.RELEASED_FILE_STATUSES)
+    query = QUERY_STEM + status_str
+    files = ff_utils.search_metadata(query, key=connection.ff_keys)
+    unique_donor_ids = list({d["uuid"] for f in files for d in f.get("donors", []) if "uuid" in d})
+    donors_with_released_files = [ff_utils.get_metadata(did, key=connection.ff_keys) for did in unique_donor_ids]
+    donors_to_tag = wr_utils.filter_items_by_properties(
+        donors_with_released_files, {"study": "Production", "tags": constants.DONOR_W_FILES_TAG})
+
+    if not donors_to_tag:
+        check.allow_action = False
+        check.summary = 'All donors with released files are tagged'
+        check.description = f'With the tag - {constants.DONOR_W_FILES_TAG}'
+        check.status = 'PASS'
+        return check
+
+    donor_info = [f"{d.get('external_id', '')}\t{d.get('accession', '')}\t{d.get('@id'), ''}" for d in donors_to_tag]
+    uuids = [d.get('uuid') for d in donors_to_tag if 'uuid' in d]
+    check.allow_action = True
+    check.brief_output = '{} donors with released files to be tagged'.format(len(donors_to_tag))
+    check.full_output = {'info': donor_info, 'uuids': uuids}
+    check.status = 'WARN'
+    check.summary = 'Donors with released files need tagging'
+
+
+@action_function()
+def tag_donors_with_released_files(connection, **kwargs):
+    action = ActionResult(connection, 'tag_donors_with_released_files')
+    action_logs = {'patch_failure': [], 'patch_success': []}
+    # get the associated untagged_donors_with_released_files result
+    donors_to_tag_check_result = action.get_associated_check_result(kwargs)
+    donors_to_tag = donors_to_tag_check_result.get('full_output', {}).get('uuids', [])
+    for donor_uuid in donors_to_tag:
+        try:
+            existing_tags = ff_utils.get_metadata(donor_uuid, key=connection.ff_keys).get('tags', [])
+        except Exception as e:
+            action.status = 'WARN'
+            action_logs['patch_failure'].append(f'Error fetching donor {donor_uuid}: {e}')
+            continue
+        patch_body = {'tags': list(set(existing_tags + [constants.DONOR_W_FILES_TAG]))}
+        try:
+            ff_utils.patch_metadata(patch_body, obj_id=donor_uuid, key=connection.ff_keys)
+            action_logs['patch_success'].append(f'Successfully tagged donor {donor_uuid}')
+        except Exception as e:
+            action.status = 'WARN'
+            action_logs['patch_failure'].append(f'Error tagging donor {donor_uuid}: {e}')
+            continue
+
+    if not action_logs.get('patch_failure') and len(action_logs.get('patch_success', [])) == len(donors_to_tag):
+        action.summary = f'Success'
+        action.description = f'Successfully tagged {len(donors_to_tag)} donors with {constants.DONOR_W_FILES_TAG}'
+        action.status = 'DONE'
+    action.output = action_logs
+    return action
 
 
 @check_function()

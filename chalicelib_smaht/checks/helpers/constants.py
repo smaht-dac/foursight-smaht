@@ -15,3 +15,10 @@ MWFR_RUNNING = "running"
 MWFR_INACTIVE = "inactive"
 MWFR_PENDING = "pending"
 MWFR_FAILED = "failed"
+
+# wrangler check constants
+RELEASED_FILE_STATUSES = [
+    'open', 'open-early', 'open-network',
+    'protected', 'protected-early', 'protected-network'
+]
+DONOR_W_FILES_TAG = "has_released_files"
