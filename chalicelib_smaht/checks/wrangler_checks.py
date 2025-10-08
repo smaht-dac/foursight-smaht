@@ -39,8 +39,7 @@ def untagged_donors_with_released_files(connection, **kwargs):
     donors_to_tag = wr_utils.include_items_with_properties(
         wr_utils.exclude_items_with_properties(donors_with_released_files, {"tags": constants.DONOR_W_FILES_TAG}),
         {"study": "Production"})
-    donors_to_tag.extend([d.get('protected_donor') for d in donors_to_tag if
-                          ('protected_donor' in d and constants.DONOR_W_FILES_TAG not in d.get('tags', []))])
+    donors_to_tag.extend([d.get('protected_donor') for d in donors_to_tag if 'protected_donor' in d])
 
     if not donors_to_tag:
         check.allow_action = False
