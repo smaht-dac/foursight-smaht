@@ -1,14 +1,7 @@
-import re
-import requests
 import json
-import datetime
 import time
 import random
-from collections import Counter
 from dcicutils import ff_utils
-from dcicutils.env_utils import prod_bucket_env_for_app
-from foursight_core.boto_s3 import boto_s3_resource
-from foursight_core.checks.helpers import wrangler_utils
 
 # Use confchecks to import decorators object and its methods for each check module
 # rather than importing check_function, action_function, CheckResult, ActionResult
@@ -42,7 +35,6 @@ def untagged_donors_with_released_files(connection, **kwargs):
     donors_to_tag.extend([d.get('protected_donor') for d in donors_to_tag if 'protected_donor' in d])
 
     if not donors_to_tag:
-        check.allow_action = False
         check.summary = 'All donors with released files are tagged'
         check.description = f'With the tag - {constants.DONOR_W_FILES_TAG}'
         check.status = 'PASS'
@@ -134,5 +126,3 @@ def item_counts_by_type(connection, **kwargs):
         check.summary = check.description = 'DB and ES item counts are equal'
     check.full_output = item_counts
     return check
-
-
