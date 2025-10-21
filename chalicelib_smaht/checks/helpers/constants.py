@@ -9,6 +9,7 @@ CHECK_IGNORE = "IGNORE"
 ACTION_PASS = "DONE"
 ACTION_PEND = "PEND"
 ACTION_FAIL = "FAIL"
+ACTION_WARN = "WARN"
 
 # MetaWorkflowRun final_status
 MWFR_RUNNING = "running"

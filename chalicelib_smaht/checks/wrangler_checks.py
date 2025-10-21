@@ -37,7 +37,7 @@ def untagged_donors_with_released_files(connection, **kwargs):
     if not donors_to_tag:
         check.summary = 'All donors with released files are tagged'
         check.description = f'With the tag - {constants.DONOR_W_FILES_TAG}'
-        check.status = 'PASS'
+        check.status = constants.CHECK_PASS
         return check
 
     donor_info = [f"{d.get('external_id', '')}\t{d.get('accession', '')}\t{d.get('@id'), ''}" for d in donors_to_tag]
@@ -45,7 +45,7 @@ def untagged_donors_with_released_files(connection, **kwargs):
     check.allow_action = True
     check.brief_output = '{} donors with released files to be tagged'.format(len(donors_to_tag))
     check.full_output = {'info': donor_info, 'uuids': uuids}
-    check.status = 'WARN'
+    check.status = constants.CHECK_WARN
     check.summary = 'Donors with released files need tagging'
     return check
 
@@ -61,7 +61,7 @@ def tag_donors_with_released_files(connection, **kwargs):
         try:
             existing_tags = ff_utils.get_metadata(donor_uuid, key=connection.ff_keys).get('tags', [])
         except Exception as e:
-            action.status = 'WARN'
+            action.status = constants.ACTION_WARN
             action_logs['patch_failure'].append(f'Error fetching donor {donor_uuid}: {e}')
             continue
         patch_body = {'tags': list(set(existing_tags + [constants.DONOR_W_FILES_TAG]))}
@@ -69,14 +69,14 @@ def tag_donors_with_released_files(connection, **kwargs):
             ff_utils.patch_metadata(patch_body, obj_id=donor_uuid, key=connection.ff_keys)
             action_logs['patch_success'].append(f'Successfully tagged donor {donor_uuid}')
         except Exception as e:
-            action.status = 'WARN'
+            action.status = constants.ACTION_WARN
             action_logs['patch_failure'].append(f'Error tagging donor {donor_uuid}: {e}')
             continue
 
     if not action_logs.get('patch_failure') and len(action_logs.get('patch_success', [])) == len(donors_to_tag):
         action.summary = f'Success'
         action.description = f'Successfully tagged {len(donors_to_tag)} donors with {constants.DONOR_W_FILES_TAG}'
-        action.status = 'DONE'
+        action.status = constants.ACTION_PASS
     action.output = action_logs
     return action
 
