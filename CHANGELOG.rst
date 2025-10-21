@@ -7,6 +7,13 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.13
+=========
+* Added check and associated action to checks/wrangler_checks.py `untagged_donors_with_released_files` that looks for donors that have released files but are missing the 'has_released_files' tag, and adds the tag if missing.
+* NOTE: added to the Audit Check group in UI for now and scheduled to run daily in `morning_checks` schedule
+* action is initially not cued and will need to be run manually
+
+
 0.8.12
 =========
 * Added check to checks/audit_checks.py `check_tissue_sample_properties` that is a weekly check of GCC/TTD-submitted tissue samples to make sure they match particular metadata from corresponding TPC-submitted tissue sample item (with a matching external_id)

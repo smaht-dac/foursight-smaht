@@ -565,5 +565,22 @@
         "display": [
             "<env-name>"
         ]
+    },
+        "untagged_donors_with_released_files": {
+        "title": "Check for untagged donors with released files",
+        "group": "Audit Checks",
+        "schedule": {
+            "morning_checks": {
+                "<env-name>": {
+                    "kwargs": {
+                        "primary": true
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "<env-name>"
+        ]
     }
 }
