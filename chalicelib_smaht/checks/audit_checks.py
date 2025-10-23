@@ -9,6 +9,8 @@ from foursight_core.checks.helpers import wrangler_utils
 # that requires initialization with foursight prefix.
 from .helpers.confchecks import *
 
+from .helpers import constants
+
 
 STATUS_LEVEL = {
     'released': 4,
@@ -90,21 +92,20 @@ def check_validation_errors(connection, **kwargs):
 def check_submitted_md5(connection, **kwargs):
     """ Check that any submitted md5s are consistent with the ones we generated """
     check = CheckResult(connection, 'check_submitted_md5')
-
-    search_url = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&content_md5sum!=No+value&limit=500' \
-                 '&field=submitted_md5sum&field=content_md5sum'
-    results = ff_utils.search_metadata(search_url, key=connection.ff_keys)
+    search_stem = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&content_md5sum!=No+value'
+    search_url =  search_stem + '&field=submitted_md5sum&field=content_md5sum'
+    results = ff_utils.search_metadata(search_url, key=connection.ff_keys, is_generator=True)
     atids = {result['@id'] for result in results if result['submitted_md5sum'] != result['content_md5sum']}
     if atids:
-        check.status = 'WARN'
+        check.status = constants.CHECK_WARN
         check.summary = 'Inconsistent Content Md5Sum(s) Found!'
         check.description = f'{len(atids)} items found with inconsistent md5sum, for results see below link.'
         check.full_output = {
-            'items': atids
+            'items': list(atids)
         }
-        check.ff_link = connection.ff_server + search_url
+        check.ff_link = connection.ff_server + search_stem
     else:
-        check.status = 'PASS'
+        check.status = constants.CHECK_PASS
         check.summary = 'No inconsistent md5sums.'
         check.description = 'No inconsistent md5sums.'
     return check
@@ -117,11 +118,11 @@ def check_for_new_submissions(connection, **kwargs):
     """
     check = CheckResult(connection, 'check_for_new_submissions')
     last_result = check.get_primary_result()
-    search_url = 'search/?type=IngestionSubmission&submission_centers.display_title%21=HMS+DAC'
+    search_url = f'search/?type=IngestionSubmission&submission_centers.display_title%21={constants.DAC_NAME}'
     results = ff_utils.search_metadata(search_url, key=connection.ff_keys)
-    current_result_count = results['total']
+    current_result_count = len(results)
     if not last_result:
-        check.status = 'PASS'
+        check.status = constants.CHECK_PASS
         check.summary = 'First result - setting a baseline'
         check.full_output = {
             'submission_count': current_result_count
@@ -129,13 +130,13 @@ def check_for_new_submissions(connection, **kwargs):
     else:
         last_result_count = int(last_result['full_output']['submission_count'])
         if last_result_count <= current_result_count:
-            check.status = 'PASS'
+            check.status = constants.CHECK_PASS
             check.summary = 'No change in submissions detected'
             check.full_output = {
                 'submission_count': current_result_count
             }
         else:  # we detected an increase in submissions not touched by us
-            check.status = 'WARN'
+            check.status = constants.CHECK_WARN
             check.summary = f'Detected {current_result_count - last_result_count} new submission for review'
             check.full_output = {
                 'submission_count': current_result_count
@@ -145,11 +146,10 @@ def check_for_new_submissions(connection, **kwargs):
 
 @check_function(last_mod_date=None)
 def check_tissue_sample_properties(connection, **kwargs):
-    """Weekly check of GCC-submitted tissue samples to make sure they match the metadata from corresponding TPC-submitted tissue sample item.
-    
+    """Weekly check of GCC-submitted tissue samples to make sure they match the metadata from
+        corresponding TPC-submitted tissue sample item.
     """
     check = CheckResult(connection, 'check_tissue_sample_properties')
-    # if true will run on all replicate sets
 
     last_mod_date = kwargs['last_mod_date']
     check_properties = [
@@ -159,37 +159,54 @@ def check_tissue_sample_properties(connection, **kwargs):
         "core_size"
     ]
     incorrect = []
-    search_url = "search/?type=TissueSample&submission_centers.display_title=NDRI+TPC"
+    # get all non-TPC-submitted tissue samples modified since last_mod_date (if provided)
+    search_url = f"search/?type=TissueSample&submission_centers.display_title!={constants.TPC_NAME}"
     if last_mod_date:
         search_url += f"&last_modified.date_modified.from={last_mod_date}"
-    else:
-        search_url += "&limit=500"
-    tpc_tissue_samples = ff_utils.search_metadata(search_url,key=connection.ff_keys)
-    for tissue_sample in tpc_tissue_samples:
-        external_id = tissue_sample['external_id']
-        gcc_search_url = f"search/?type=TissueSample&submission_centers.display_title!=NDRI+TPC&external_id={external_id}"
-        gcc_tissue_samples = ff_utils.search_metadata(gcc_search_url,key=connection.ff_keys)
-        gcc_tissue_sample = gcc_tissue_samples[0]
-        if len(gcc_tissue_samples) > 1:
-            for dup_sample in gcc_tissue_samples:
-                incorrect.append({'uuid': dup_sample['uuid'],
-                    '@id': dup_sample['@id'],
-                    'description': dup_sample.get('description'),
-                    'error': f"Multiple tissue sample items for one TPC-submitted tissue sample {tissue_sample.get('accession')}"})
+    gcc_tissue_samples = ff_utils.search_metadata(search_url, key=connection.ff_keys, is_generator=True)
+    for gcc_sample in gcc_tissue_samples:
+        external_id = gcc_sample.get('external_id')
+        sample_by_extid_search_url = f"search/?type=TissueSample&external_id={external_id}"
+        extid_tissue_samples = ff_utils.search_metadata(sample_by_extid_search_url, key=connection.ff_keys)
+        tpc_sample = None
+        extras = []
+        for sample in extid_tissue_samples:
+            if sample.get('uuid') == gcc_sample.get('uuid'):
+                continue
+            if sample.get('submission_centers', {}).get('display_title') == constants.TPC_NAME:
+                extras.append(sample) if tpc_sample else (tpc_sample := sample)
+            else:
+                extras.append(sample)
+        if not tpc_sample:
+            incorrect.append(
+                {'uuid': tissue_sample['uuid'],
+                 '@id': tissue_sample['@id'],
+                 'description': tissue_sample.get('description'),
+                 'error': f"No corresponding TPC-submitted tissue sample found for GCC-submitted tissue sample with external_id {external_id}"})
+            continue
+        if extras:
+            for dup_sample in extras:
+                incorrect.append(
+                    {'uuid': dup_sample['uuid'],
+                     '@id': dup_sample['@id'],
+                     'description': dup_sample.get('description'),
+                     'error': f"Extra tissue sample items found with external_id {external_id}"})
         for check_property in check_properties:
-            if check_property in gcc_tissue_sample and check_property in tissue_sample:
-                if gcc_tissue_sample[check_property] != tissue_sample[check_property]:
-                    incorrect.append({'uuid': gcc_tissue_sample['uuid'],
-                        '@id': gcc_tissue_sample['@id'],
-                        'description': gcc_tissue_sample.get('description'),
-                        check_property: gcc_tissue_sample.get(check_property),
-                        'error': f"Metadata properties inconsistent with TPC-submitted tissue sample {tissue_sample.get('accession')}"})
+            if check_property in gcc_sample and check_property in tpc_sample:
+                if gcc_sample[check_property] != tpc_sample[check_property]:
+                    incorrect.append(
+                        {'uuid': gcc_sample['uuid'],
+                         '@id': gcc_sample['@id'],
+                         'description': gcc_sample.get('description'),
+                         check_property: (gcc_sample.get(check_property), tpc_sample.get(check_property)),
+                         'error': f"GCC Metadata inconsistent with TPC metadata for external_id {external_id}"})
+
     check.full_output = incorrect
     check.brief_output = [item['@id'] for item in incorrect]
     if incorrect:
-        check.status = 'WARN'
+        check.status = constants.CHECK_WARN
         check.summary = 'TissueSample found with inconsistent metadata'
     else:
-        check.status = 'PASS'
+        check.status = constants.CHECK_PASS
         check.summary = 'No tissue samples with inconsistent metadata'
     return check
