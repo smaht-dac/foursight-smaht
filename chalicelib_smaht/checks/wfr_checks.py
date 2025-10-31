@@ -197,7 +197,8 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
         )
         check.brief_output.append(msg)
         check.full_output["files_with_run_and_wrong_status"] = not_switched_status
-    check.brief_output.append(qmsg)
+    if qmsg:
+        check.brief_output.append(qmsg)
     action_items = missing_md5 + not_switched_status
     msg = "%s file(s) require MD5 checksum start or status update" % len(action_items)
     check.summary = msg

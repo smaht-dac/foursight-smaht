@@ -84,11 +84,20 @@ def check_validation_errors(connection, **kwargs):
     return check
 
 
-@check_function()
+@check_function(last_mod_date=None)
 def check_submitted_md5(connection, **kwargs):
     """ Check that any submitted md5s are consistent with the ones we generated """
     check = CheckResult(connection, 'check_submitted_md5')
+
+    if not (last_mod_date := kwargs.get('last_mod_date')):
+        last_result = check.get_primary_result()
+        if last_result:
+            lr_uuid = last_result.get('uuid')
+            last_mod_date = lr_uuid.split("T")[0]
+
     search_stem = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&md5sum!=No+value'
+    if last_mod_date and last_mod_date != 'check_all':
+        search_stem += f'&last_modified.date_modified.from={last_mod_date}'
     search_url = search_stem + '&field=submitted_md5sum&field=md5sum'
     results = ff_utils.search_metadata(search_url, key=connection.ff_keys, is_generator=True)
     atids = {result['@id'] for result in results if result['submitted_md5sum'] != result['md5sum']}
