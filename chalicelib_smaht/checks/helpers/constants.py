@@ -24,3 +24,4 @@ RELEASED_FILE_STATUSES = [
 ]
 DONOR_W_FILES_TAG = "has_released_files"
 TPC_NAME = "NDRI TPC"
+DAC_NAME = "HMS DAC"
