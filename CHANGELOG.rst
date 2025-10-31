@@ -7,6 +7,15 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.14
+=========
+* Bug fixes to a couple of checks that were expected a field that is not present in results from search_metadata
+* in audit_checks.py check_submitted_md5: changed content_md5sum to md5sum
+* added constatns and used them for CHECK_PASS, CHECK_WARN
+* removed depenency on empty indexing queue for md5run_status check in wfr_checks.py
+* increase max_files from 50 to 300 for md5run_status check in wfr_checks.py
+* adjusted check_setup.json for md5run_status check to run every 30min instead of 15min
+
 0.8.13
 =========
 * Added check and associated action to checks/wrangler_checks.py `untagged_donors_with_released_files` that looks for donors that have released files but are missing the 'has_released_files' tag, and adds the tag if missing.
