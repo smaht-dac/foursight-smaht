@@ -47,12 +47,12 @@ def page_children_routes(connection, **kwargs):
                 problem_routes[result['name']] = bad_children
 
     if problem_routes:
-        check.status = constants.STATUS_WARN
+        check.status = constants.CHECK_WARN
         check.summary = 'Pages with bad routes found'
         check.description = ('{} child pages whose route is not a direct sub-route of parent'
                              ''.format(sum([len(val) for val in problem_routes.values()])))
     else:
-        check.status = constants.STATUS_PASS
+        check.status = constants.CHECK_PASS
         check.summary = 'No pages with bad routes'
         check.description = 'All routes of child pages are a direct sub-route of parent page'
     check.full_output = problem_routes
@@ -71,14 +71,14 @@ def check_validation_errors(connection, **kwargs):
     results = ff_utils.search_metadata(search_url + '&field=@id', key=connection.ff_keys)
     if results:
         types = {item for result in results for item in result['@type'] if item != 'Item'}
-        check.status = constants.STATUS_WARN
+        check.status = constants.CHECK_WARN
         check.summary = 'Validation errors found'
         check.description = ('{} items found with validation errors, comprising the following '
                              'item types: {}. \nFor search results see link below.'.format(
                                  len(results), ', '.join(list(types))))
         check.ff_link = connection.ff_server + search_url
     else:
-        check.status = constants.STATUS_PASS
+        check.status = constants.CHECK_PASS
         check.summary = 'No validation errors'
         check.description = 'No validation errors found.'
     return check
@@ -88,10 +88,10 @@ def check_validation_errors(connection, **kwargs):
 def check_submitted_md5(connection, **kwargs):
     """ Check that any submitted md5s are consistent with the ones we generated """
     check = CheckResult(connection, 'check_submitted_md5')
-    search_stem = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&content_md5sum!=No+value'
-    search_url = search_stem + '&field=submitted_md5sum&field=content_md5sum'
+    search_stem = 'search/?type=SubmittedFile&submitted_md5sum!=No+value&md5sum!=No+value'
+    search_url = search_stem + '&field=submitted_md5sum&field=md5sum'
     results = ff_utils.search_metadata(search_url, key=connection.ff_keys, is_generator=True)
-    atids = {result['@id'] for result in results if result['submitted_md5sum'] != result['content_md5sum']}
+    atids = {result['@id'] for result in results if result['submitted_md5sum'] != result['md5sum']}
     if atids:
         check.status = constants.CHECK_WARN
         check.summary = 'Inconsistent Content Md5Sum(s) Found!'
