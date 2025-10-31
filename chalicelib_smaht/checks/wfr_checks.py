@@ -110,12 +110,14 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
     check.description = "Find files uploaded to S3 without MD5 checksum"
 
     indexing_queue = ff_utils.stuff_in_queues(connection.ff_env, check_secondary=False)
+    qmsg = ''
     if indexing_queue:
-        check.status = constants.CHECK_PASS
-        check.brief_output = ["Waiting for indexing queue to clear"]
-        check.summary = "Waiting for indexing queue to clear"
-        check.allow_action = False
-        return check
+        qmsg = "Items in indexing queue during check run"
+        # check.status = constants.CHECK_PASS
+        # check.brief_output = ["Waiting for indexing queue to clear"]
+        # check.summary = "Waiting for indexing queue to clear"
+        # check.allow_action = False
+        # return check
     my_auth = connection.ff_keys
     query = f"/search/?status=uploading&status=upload+failed&limit={max_files}"
     query += f"&type={file_type}"
@@ -195,6 +197,7 @@ def md5run_status(connection, file_type="", start_date=None, max_files=50, **kwa
         )
         check.brief_output.append(msg)
         check.full_output["files_with_run_and_wrong_status"] = not_switched_status
+    check.brief_output.append(qmsg)
     action_items = missing_md5 + not_switched_status
     msg = "%s file(s) require MD5 checksum start or status update" % len(action_items)
     check.summary = msg
