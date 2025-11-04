@@ -7,6 +7,16 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.15
+=========
+* Add 30 min schedule to check_schedules.py
+* Update check_setup.json to include higher max_files as default
+* bug fix for check_for_new_submissions in audit_checks.py:
+  - comparison of numbers was reversed should be last_result_count >= current_result_count
+  - added handling for last_result having status CHECK_ERROR
+* string formatting bug fix for untagged_donors_with_released_files in wrangler_checks.py:
+
+
 0.8.14
 =========
 * Bug fixes to a couple of checks that were expected a field that is not present in results from search_metadata
