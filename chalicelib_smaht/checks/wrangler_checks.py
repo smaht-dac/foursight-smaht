@@ -40,7 +40,7 @@ def untagged_donors_with_released_files(connection, **kwargs):
         check.status = constants.CHECK_PASS
         return check
 
-    donor_info = [f"{d.get('external_id', '')}\t{d.get('accession', '')}\t{d.get('@id'), ''}" for d in donors_to_tag]
+    donor_info = [f"{d.get('external_id', '')}    {d.get('accession', '')}   {d.get('@id', '')}" for d in donors_to_tag]
     uuids = [d.get('uuid') for d in donors_to_tag if 'uuid' in d]
     check.allow_action = True
     check.brief_output = '{} donors with released files to be tagged'.format(len(donors_to_tag))

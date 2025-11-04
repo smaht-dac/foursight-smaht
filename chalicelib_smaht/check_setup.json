@@ -194,7 +194,7 @@
             "thirty_min_checks": {
                 "<env-name>": {
                     "kwargs": {
-                        "max_files": 50,
+                        "max_files": 300,
                         "primary": true,
                         "queue_action": "prod"
                     },

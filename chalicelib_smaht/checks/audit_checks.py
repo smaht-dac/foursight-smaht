@@ -126,15 +126,15 @@ def check_for_new_submissions(connection, **kwargs):
     search_url = f'search/?type=IngestionSubmission&submission_centers.display_title%21={constants.DAC_NAME}'
     results = ff_utils.search_metadata(search_url, key=connection.ff_keys)
     current_result_count = len(results)
-    if not last_result:
+    if not last_result or last_result.get('status') == constants.CHECK_ERROR:
         check.status = constants.CHECK_PASS
         check.summary = 'First result - setting a baseline'
         check.full_output = {
             'submission_count': current_result_count
         }
     else:
-        last_result_count = int(last_result['full_output']['submission_count'])
-        if last_result_count <= current_result_count:
+        last_result_count = int(last_result['full_output'].get('submission_count', 0))
+        if last_result_count >= current_result_count:
             check.status = constants.CHECK_PASS
             check.summary = 'No change in submissions detected'
             check.full_output = {
