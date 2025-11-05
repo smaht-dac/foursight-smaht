@@ -191,7 +191,7 @@
         "title": "MD5 runs",
         "group": "Pipeline Checks",
         "schedule": {
-            "thirty_min_checks": {
+            "hourly_checks": {
                 "<env-name>": {
                     "kwargs": {
                         "max_files": 300,
