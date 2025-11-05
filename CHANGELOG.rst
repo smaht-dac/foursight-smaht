@@ -7,6 +7,10 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.16
+=========
+* Adjust schedule for md5run_status check in check_setup.json to hourly_checks until issue with 30_min check schedule is resolved.
+
 0.8.15
 =========
 * Add 30 min schedule to check_schedules.py
