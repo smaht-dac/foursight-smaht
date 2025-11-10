@@ -573,7 +573,8 @@
             "morning_checks": {
                 "<env-name>": {
                     "kwargs": {
-                        "primary": true
+                        "primary": true,
+                        "queue_action": "prod"
                     },
                     "dependencies": []
                 }
