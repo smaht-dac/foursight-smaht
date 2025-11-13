@@ -7,6 +7,12 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.17
+======
+* Update the sample_consistency_check to ensure that all GCC samples have a corresponding TPC sample with matching external_id.
+* and report these cases as well as when multiple GCC samples correspond to one TPC sample.
+* and still check for consistent properties between matching samples - (only a few key properties for now).
+
 0.8.16
 =========
 * Adjust schedule for md5run_status check in check_setup.json to hourly_checks until issue with 30_min check schedule is resolved.
