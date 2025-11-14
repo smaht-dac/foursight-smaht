@@ -7,6 +7,64 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.16
+=========
+* Adjust schedule for md5run_status check in check_setup.json to hourly_checks until issue with 30_min check schedule is resolved.
+
+0.8.15
+=========
+* Add 30 min schedule to check_schedules.py
+* Update check_setup.json to include higher max_files as default
+* bug fix for check_for_new_submissions in audit_checks.py:
+  - comparison of numbers was reversed should be last_result_count >= current_result_count
+  - added handling for last_result having status CHECK_ERROR
+* string formatting bug fix for untagged_donors_with_released_files in wrangler_checks.py:
+
+
+0.8.14
+=========
+* Bug fixes to a couple of checks that were expected a field that is not present in results from search_metadata
+* in audit_checks.py check_submitted_md5: changed content_md5sum to md5sum
+* added constatns and used them for CHECK_PASS, CHECK_WARN
+* removed depenency on empty indexing queue for md5run_status check in wfr_checks.py
+* increase max_files from 50 to 300 for md5run_status check in wfr_checks.py
+* adjusted check_setup.json for md5run_status check to run every 30min instead of 15min
+
+0.8.13
+=========
+* Added check and associated action to checks/wrangler_checks.py `untagged_donors_with_released_files` that looks for donors that have released files but are missing the 'has_released_files' tag, and adds the tag if missing.
+* NOTE: added to the Audit Check group in UI for now and scheduled to run daily in `morning_checks` schedule
+* action is initially not cued and will need to be run manually
+
+
+0.8.12
+=========
+* Added check to checks/audit_checks.py `check_tissue_sample_properties` that is a weekly check of GCC/TTD-submitted tissue samples to make sure they match particular metadata from corresponding TPC-submitted tissue sample item (with a matching external_id)
+* Also checks for more than one GCC/TTD-submitted tissue sample corresponding to one TPC-submitted tissue sample, as they should be one-to-one and would indicate a mislabel
+
+
+0.8.11
+======
+* Removed tests/checks/helpers/test_wfr_utils.py (just a single import) which was causing tests to fail with:
+  ERROR collecting tests/checks/helpers/test_wfr_utils.py
+  import file mismatch: imported module 'test_wfr_utils' has
+  this __file__ attribute: /Users/dmichaels/repos/foursight-smaht/tests/checks/test_wfr_utils.py
+  which is not the same as the test file we want to collect:
+  /Users/dmichaels/repos/foursight-smaht/tests/checks/helpers/test_wfr_utils.py
+
+
+0.8.10
+======
+* Make sure that files that don't require lifecycle updates receive an updated `s3_lifecycle_last_checked`` property.
+* Pull in latest dependencies (especially dcicutils 8.16.6)
+
+
+0.8.9
+=====
+* 2024-10-11/dmichaels
+* Updated dcicutils version (8.16.1) for vulnerabilities.
+
+
 0.8.8
 =====
 * Support for Python 3.12.

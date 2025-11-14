@@ -208,10 +208,10 @@
         "title": "MD5 runs",
         "group": "Pipeline Checks",
         "schedule": {
-            "fifteen_min_checks": {
+            "hourly_checks": {
                 "<env-name>": {
                     "kwargs": {
-                        "max_files": 50,
+                        "max_files": 300,
                         "primary": true,
                         "queue_action": "prod"
                     },
@@ -554,6 +554,40 @@
         "group": "Audit Checks",
         "schedule": {
             "monday_checks": {
+                "<env-name>": {
+                    "kwargs": {
+                        "primary": true
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "<env-name>"
+        ]
+    },
+    "check_tissue_sample_properties": {
+        "title": "Check Tissue Sample properties",
+        "group": "Audit Checks",
+        "schedule": {
+            "monday_checks": {
+                "<env-name>": {
+                    "kwargs": {
+                        "primary": true
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "<env-name>"
+        ]
+    },
+        "untagged_donors_with_released_files": {
+        "title": "Check for untagged donors with released files",
+        "group": "Audit Checks",
+        "schedule": {
+            "morning_checks": {
                 "<env-name>": {
                     "kwargs": {
                         "primary": true
