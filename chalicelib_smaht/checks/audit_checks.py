@@ -185,7 +185,7 @@ def check_tissue_sample_properties(connection, **kwargs):
     for tissue_sample in gcc_tissue_samples:
         external_id = tissue_sample["external_id"]
         # Only check GCC-submitted tissue samples from production donors
-        if not external_id.startswith("SMHT"):  # do we need to broaden this?
+        if not (external_id.startswith("SMHT") or external_id.startswith("ST00")):
             continue
         tpc_search_url = f"search/?type=TissueSample&submission_centers.display_title=NDRI+TPC&external_id={external_id}"
         tpc_tissue_samples = ff_utils.search_metadata(
