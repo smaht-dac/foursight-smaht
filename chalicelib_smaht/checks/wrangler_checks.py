@@ -235,7 +235,7 @@ def parse_pubmed_xml(xml_text: str) -> Dict[str, Any]:
         "abstract": None,
         "authors": [],
         "journal": None,
-        "publication_date": None,
+        "date_published": None,
     }
 
     try:
@@ -279,7 +279,7 @@ def parse_pubmed_xml(xml_text: str) -> Dict[str, Any]:
                     date_str += f"-{month.text}"
                 if day is not None:
                     date_str += f"-{day.text}"
-                result["publication_date"] = date_str
+                result["date_published"] = date_str
 
     except Exception as e:
         print(f"Error parsing PubMed XML: {e}")
@@ -339,7 +339,7 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
         "authors": [],
         "journal": None,
         "journal_url": None,
-        "publication_date": None,
+        "date_published": None,
         "is_preprint": False,
     }
 
@@ -378,7 +378,7 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
             result["journal_url"] = crossref_data["resource"]["primary"]["URL"]
 
     # Publication date
-    result["publication_date"] = _get_date_published_from_crossref(crossref_data)
+    result["date_published"] = _get_date_published_from_crossref(crossref_data)
 
     # Check if preprint - may be more types in future
     result["is_preprint"] = crossref_is_not_journal_article(crossref_data)
@@ -395,7 +395,7 @@ def parse_rxiv_data(rxiv_data: Dict[str, Any], rxiv_server: str) -> Dict[str, An
             rxiv_data.get("authors", "").split("; ") if rxiv_data.get("authors") else []
         ),
         "journal": rxiv_server,
-        "publication_date": rxiv_data.get("date"),
+        "date_published": rxiv_data.get("date"),
         "is_preprint": True,
         "preprint_version": rxiv_data.get("version"),
     }
@@ -440,7 +440,7 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         "title": None,
         "abstract": None,
         "authors": [],
-        "publication_date": None,
+        "date_published": None,
         "preprint_version": None,
     }
     crossref_metadata = None
