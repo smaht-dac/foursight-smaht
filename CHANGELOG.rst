@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.8.18
+======
+* Increase limits of lifecycle status checks.
+
+
 0.8.17
 ======
 * Update the sample_consistency_check to ensure that all GCC samples have a corresponding TPC sample with matching external_id.
