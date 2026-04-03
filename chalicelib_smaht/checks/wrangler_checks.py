@@ -722,13 +722,15 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         print(f"Invalid input for update operation (check your accession): {info}")
         return {}
     doi = info[1]
-    if duplicate_pub := ff_utils.search_metadata(
-        f"search/?type=Publication&doi={doi}",
-        key=connection.ff_keys
+    if info[0] != 'update' and (
+        duplicate_pub := ff_utils.search_metadata(
+            f"search/?type=Publication&doi={doi}",
+            key=connection.ff_keys
+        )
     ):
         print(f"Publication with DOI {doi} already exists: {duplicate_pub['uuid']}")
         return {}
-    
+
     pub_info = {
         "consortium": "smaht",
         "doi": doi,
@@ -820,8 +822,8 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     return info[0], pub_info
 
 
-ACCESSION_PATTERN = re.compile(r'SMHTPB\d{7}')
-DOI_PATTERN = re.compile(r'10\.\d{4,}/.+')
+ACCESSION_PATTERN = re.compile(r'SMAPB[A-Z0-9]{7}')
+DOI_PATTERN = re.compile(r'10\.\d{4,}/[^|\s]+')
 
 RECORD_PATTERN = re.compile(
     rf'^(?P<doi>{DOI_PATTERN.pattern})(?:\|(?P<accession>{ACCESSION_PATTERN.pattern}))?$'
@@ -893,7 +895,6 @@ def prepare_pub_metadata(connection, **kwargs):
     pubs_to_patch = []
     problems = []
     id_list = parse_input_ids(id_str)
-    import pdb; pdb.set_trace()
     for idinfo in id_list:
         if pub_info := fetch_publication_info(connection, idinfo):
             if pub_info[0] == 'create':
