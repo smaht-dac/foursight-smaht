@@ -3,6 +3,7 @@ from os import name
 import time
 import random
 from unittest import result
+import datetime
 import requests
 import re
 import html
@@ -257,9 +258,9 @@ def parse_pubmed_xml(xml_text: str) -> Dict[str, Any]:
             last_name = author.find("LastName")
             fore_name = author.find("ForeName")
             if last_name is not None and fore_name is not None:
-                authors.append(f"{fore_name.text} {last_name.text}")
+                authors.append({"first_name": fore_name.text, "last_name": last_name.text})
             elif last_name is not None:
-                authors.append(last_name.text)
+                authors.append({"last_name": last_name.text})
         result["authors"] = authors
 
         # Extract journal
@@ -279,7 +280,7 @@ def parse_pubmed_xml(xml_text: str) -> Dict[str, Any]:
                     date_str += f"-{month.text}"
                 if day is not None:
                     date_str += f"-{day.text}"
-                result["date_published"] = date_str
+                result["date_published"] = normalize_date(date_str)
 
     except Exception as e:
         print(f"Error parsing PubMed XML: {e}")
@@ -358,9 +359,9 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
             given = author.get("given", "")
             family = author.get("family", "")
             if given and family:
-                authors.append(f"{given} {family}")
+                authors.append({"first_name": given, "last_name": family})
             elif family:
-                authors.append(family)
+                authors.append({"last_name": family})
     result["authors"] = authors
 
     # Journal
@@ -378,7 +379,9 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
             result["journal_url"] = crossref_data["resource"]["primary"]["URL"]
 
     # Publication date
-    result["date_published"] = _get_date_published_from_crossref(crossref_data)
+    result["date_published"] = normalize_date(
+        _get_date_published_from_crossref(crossref_data)           # <-- changed
+    )
 
     # Check if preprint - may be more types in future
     result["is_preprint"] = crossref_is_not_journal_article(crossref_data)
@@ -386,16 +389,193 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+_MONTH_NAMES: Dict[str, str] = {
+    # abbreviated
+    "jan": "01", "feb": "02", "mar": "03", "apr": "04",
+    "may": "05", "jun": "06", "jul": "07", "aug": "08",
+    "sep": "09", "oct": "10", "nov": "11", "dec": "12",
+    # full
+    "january": "01", "february": "02", "march": "03",  "april": "04",
+    "june":    "06", "july":     "07", "august": "08",
+    "september": "09", "october": "10", "november": "11", "december": "12",
+}
+
+
+def _normalize_month(month_str: str) -> Optional[str]:
+    """
+    Convert a month string to a zero-padded two-digit numeric string.
+
+    Accepts:
+        - Numeric strings: "1" -> "01", "12" -> "12"
+        - Abbreviated names: "Jan" -> "01"
+        - Full names: "January" -> "01"
+
+    Returns None if the value cannot be interpreted as a valid month.
+    """
+    if not month_str:
+        return None
+    lower = month_str.lower().strip()
+    if lower in _MONTH_NAMES:
+        return _MONTH_NAMES[lower]
+    try:
+        month_int = int(month_str)
+        if 1 <= month_int <= 12:
+            return str(month_int).zfill(2)
+    except ValueError:
+        pass
+    return None
+
+
+def normalize_date(date_value: Any) -> Optional[str]:
+    """
+    Normalize a date value from any publication source into a
+    standardized string format.
+
+    Returns:
+        'YYYY-MM-DD'  if year, month, and day are all present and valid
+        'YYYY-MM'     if year and month are present and valid
+        'YYYY'        if only year is present and valid
+        None          if the value cannot be interpreted as a date
+
+    Accepts:
+        - ISO-like strings:       "2023-01-15", "2023-1-5"
+        - Month-name strings:     "2023-Jan-15", "2023-January-5"
+        - Partial strings:        "2023-01", "2023-Jan", "2023"
+        - datetime objects
+        - None or empty string    -> None
+
+    Sources and example inputs:
+        CrossRef   : "2023-1-5"     (numeric, may lack zero-padding)
+        PubMed XML : "2023-Jan-05"  (month as 3-letter abbreviation)
+        bioRxiv    : "2023-01-15"   (typically already ISO format)
+    """
+    if date_value is None:
+        return None
+
+    # datetime object — format directly
+    if isinstance(date_value, datetime):
+        return date_value.strftime("%Y-%m-%d")
+
+    if not isinstance(date_value, str):
+        return None
+
+    date_str = date_value.strip()
+    if not date_str:
+        return None
+
+    # Split on hyphens or forward slashes
+    parts = re.split(r"[-/]", date_str)
+
+    # --- Year ---
+    try:
+        year_int = int(parts[0])
+        if not (1000 <= year_int <= 9999):
+            return None
+        year_str = str(year_int)
+    except (ValueError, IndexError):
+        return None
+
+    if len(parts) == 1:
+        return year_str
+
+    # --- Month ---
+    month_str = _normalize_month(parts[1])
+    if not month_str:
+        # month unparseable — return year only rather than malformed string
+        return year_str
+
+    if len(parts) == 2:
+        return f"{year_str}-{month_str}"
+
+    # --- Day ---
+    try:
+        day_int = int(parts[2])
+        if 1 <= day_int <= 31:
+            return f"{year_str}-{month_str}-{str(day_int).zfill(2)}"
+    except (ValueError, IndexError):
+        pass
+
+    # day unparseable — return year-month
+    return f"{year_str}-{month_str}"
+
+
+def _parse_author_name(author: str) -> Dict[str, str]:
+    """
+    Parse a single author string into a dictionary with last_name
+    and optionally first_name.
+
+    Handles common formats:
+        "Smith, John"         -> {"last_name": "Smith", "first_name": "John"}
+        "Smith, John A."      -> {"last_name": "Smith", "first_name": "John A."}
+        "Smith, J."           -> {"last_name": "Smith", "first_name": "J."}
+        "Smith JA"            -> {"last_name": "Smith", "first_name": "JA"}
+        "John Smith"          -> {"last_name": "Smith", "first_name": "John"}
+        "Smith"               -> {"last_name": "Smith"}
+    """
+    author = author.strip()
+    if not author:
+        return {}
+
+    # Format: "Last, First [Middle/Initials]" — comma present
+    if "," in author:
+        parts = author.split(",", 1)
+        last_name = parts[0].strip()
+        first_name = parts[1].strip() if len(parts) > 1 else None
+        result = {"last_name": last_name}
+        if first_name:
+            result["first_name"] = first_name
+        return result
+
+    # Format: "Last InitialsWithoutPeriods" e.g. "Smith JA" or "Smith J"
+    # Detect by checking if the last token is all uppercase letters (initials)
+    parts = author.split()
+    if len(parts) == 2 and parts[1].isupper():
+        return {"last_name": parts[0], "first_name": parts[1]}
+
+    # Format: "First [Middle] Last" — no comma, last word is last name
+    if len(parts) >= 2:
+        last_name = parts[-1]
+        first_name = " ".join(parts[:-1])
+        return {"last_name": last_name, "first_name": first_name}
+
+    # Single token — treat as last name only
+    return {"last_name": author}
+
+
+def _parse_authors(authors_str: str) -> List[Dict[str, str]]:
+    """
+    Parse a semicolon-separated author string into a list of author dicts.
+
+    Each dict has:
+        "last_name"  : str  (always present)
+        "first_name" : str  (present when parseable)
+
+    Example:
+        "Smith, John A.; Doe, Jane; Brown JR"
+        -> [
+              {"last_name": "Smith", "first_name": "John A."},
+              {"last_name": "Doe",   "first_name": "Jane"},
+              {"last_name": "Brown", "first_name": "JR"},
+           ]
+    """
+    if not authors_str:
+        return []
+
+    return [
+        parsed
+        for raw in authors_str.split(";")
+        if (parsed := _parse_author_name(raw)) and parsed.get("last_name")
+    ]
+
+
 def parse_rxiv_data(rxiv_data: Dict[str, Any], rxiv_server: str) -> Dict[str, Any]:
     """Parse bioRxiv/medRxiv metadata into standardized format."""
     result = {
         "title": rxiv_data.get("title"),
         "abstract": rxiv_data.get("abstract"),
-        "authors": (
-            rxiv_data.get("authors", "").split("; ") if rxiv_data.get("authors") else []
-        ),
+        "authors": _parse_authors(rxiv_data.get("authors", "")),
         "journal": rxiv_server,
-        "date_published": rxiv_data.get("date"),
+        "date_published": normalize_date(rxiv_data.get("date")),
         "is_preprint": True,
         "preprint_version": rxiv_data.get("version"),
     }
@@ -431,6 +611,7 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         return {}
     
     pub_info = {
+        "consortium": "smaht",
         "doi": doi,
         "pubmed_id": None,
         "is_preprint": False,
@@ -456,7 +637,7 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     if crossref_response:
         crossref_metadata = parse_crossref_metadata(crossref_response)
         
-    if crossref_metadata:    
+    if crossref_metadata:
         # populate pub_info from CrossRef data
         pub_info.update(crossref_metadata)
 
@@ -504,6 +685,21 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         pubmed_url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
         if pubmed_url not in pub_info["repository_urls"]:
             pub_info["repository_urls"].append(pubmed_url)
+
+    # here is where to compare existing metdata if there if curr_pub and apply updates
+    if curr_pub:
+        # for now we will just print out any differences and not update, but this is where update logic would go
+        for key in pub_info:
+            if key in curr_pub and curr_pub.get(key) != pub_info[key]:
+                # assure ourselves there is really a different value
+
+                    "current": curr_pub.get(key),
+                    "fetched": pub_info[key]
+                }
+            else:
+                continue
+        if differences:
+            print(f"Differences found for existing publication {curr_pub['uuid']}: {differences}")
 
     return pub_info
 
