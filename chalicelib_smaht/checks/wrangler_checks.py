@@ -6,7 +6,7 @@ from unittest import result
 import requests
 import re
 import html
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, List, Any
 from dcicutils import ff_utils
 
 # Use confchecks to import decorators object and its methods for each check module
@@ -210,10 +210,10 @@ def get_rxiv_metadata(doi: str) -> Optional[Dict[str, Any]]:
     """Retrieve metadata from bioRxiv/medRxiv."""
     try:
         # Extract the bioRxiv ID from DOI (e.g., 10.1101/2023.01.01.522534)
-        rxiv_id = doi.split("/")[-1]
+        # rxiv_id = doi.split("/")[-1]
         servers = constants.RXIV_PREFIXES.get(doi.split("/")[0], [])
         for server in servers:
-            url = f"{constants.RXIV_API}/{server}/{rxiv_id}"
+            url = f"{constants.RXIV_API}/{server}/{doi}"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
 
@@ -563,20 +563,23 @@ def parse_input_ids(input_string: str) -> list[tuple[str, Optional[str], Optiona
 
 
 #@check_function(action="update_pub_metadata")
-@check_function()
+@check_function(doi_acc_list=[])
 def prepare_pub_metadata(connection, **kwargs):
+    # can take as input a comma-separated list of DOIs with optional accessions for existing publications to update, in the format:
+    # 10.1000/xyz123|SMHTPB1234567, 10.1000/abc456
     check = CheckResult(connection, "prepare_pub_metadata")
     # check.action = "update_pub_metadata"
     # check.allow_action = False
     wait = round(random.uniform(0.1, random_wait), 1)
     time.sleep(wait)
-    id_str = kwargs.get("doi1|(accession)*, doi2|(accession)*, ...", [])
+    id_str = kwargs.get('doi_acc_list')
     if not id_str:
         check.status = constants.CHECK_PASS
         check.summary = "No IDs provided for metadata update"
         return check
     pubs_to_post = []
     id_list = parse_input_ids(id_str)
+    import pdb; pdb.set_trace()
     for idinfo in id_list:
         if pub_info := fetch_publication_info(connection, idinfo):
             pubs_to_post.append(pub_info)
