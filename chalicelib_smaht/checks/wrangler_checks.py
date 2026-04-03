@@ -583,6 +583,125 @@ def parse_rxiv_data(rxiv_data: Dict[str, Any], rxiv_server: str) -> Dict[str, An
     return result
 
 
+def _make_hashable(value: Any) -> Any:
+    """
+    Recursively convert a value into a hashable representation
+    so it can be placed in a set for order-independent list comparison.
+
+    dict  → frozenset of (key, hashable_value) pairs
+    list  → frozenset of hashable_value items  (order-independent)
+    other → value as-is (must already be hashable: str, int, float, bool, None)
+    """
+    if isinstance(value, dict):
+        return frozenset(
+            (k, _make_hashable(v)) for k, v in sorted(value.items())
+        )
+    if isinstance(value, list):
+        return frozenset(_make_hashable(item) for item in value)
+    return value
+
+
+def publication_values_equal(a: Any, b: Any) -> bool:
+    """
+    Determine whether two values derived from Publication schema data
+    contain the same content regardless of ordering in lists or dicts.
+
+    Handles every type produced by the Publication schema and its mixins:
+    NOTE: may need to be updated upon schema changes.
+        None, str, bool, int, float
+            → direct equality
+
+        dict  (e.g. a single author object, last_modified, attachment)
+            → recursive key-value equality; key insertion order is ignored
+
+        list  (e.g. authors, repository_urls, submission_centers, tags)
+            → element equality regardless of element order;
+              works for nested structures such as a list of author dicts.
+              NOTE: consistent with the schema's pervasive 'uniqueItems: true',
+              duplicate elements within a list are not counted separately —
+              [x, x] and [x] are considered equal.  If you need
+              multiplicity-aware comparison, replace the frozenset approach
+              with a Counter-based one.
+
+    Parameters
+    ----------
+    a, b : Any
+        Two values to compare.
+
+    Returns
+    -------
+    bool
+        True if both values are semantically equal, False otherwise.
+
+    Examples
+    --------
+    # Scalars
+    publication_values_equal("2023-01-15", "2023-01-15")   # True
+    publication_values_equal(True, False)                   # False
+    publication_values_equal(None, None)                    # True
+
+    # Author list — order-independent, nested dicts
+    publication_values_equal(
+        [{"last_name": "Smith", "first_name": "John"}, {"last_name": "Doe"}],
+        [{"last_name": "Doe"}, {"last_name": "Smith", "first_name": "John"}],
+    )  # True
+
+    # URL list — order-independent
+    publication_values_equal(
+        ["https://pubmed.ncbi.nlm.nih.gov/123/", "https://biorxiv.org/456"],
+        ["https://biorxiv.org/456", "https://pubmed.ncbi.nlm.nih.gov/123/"],
+    )  # True
+
+    # Dict — key order does not matter
+    publication_values_equal(
+        {"first_name": "Jane", "last_name": "Doe"},
+        {"last_name": "Doe", "first_name": "Jane"},
+    )  # True
+    """
+    # ------------------------------------------------------------------ #
+    # None
+    # ------------------------------------------------------------------ #
+    if a is None and b is None:
+        return True
+    if a is None or b is None:
+        return False
+
+    # ------------------------------------------------------------------ #
+    # Type mismatch — treat bool/int as distinct (schema separates them)
+    # ------------------------------------------------------------------ #
+    if type(a) is not type(b):
+        return False
+
+    # ------------------------------------------------------------------ #
+    # dict — recurse over keys; insertion order is irrelevant
+    # ------------------------------------------------------------------ #
+    if isinstance(a, dict):
+        if set(a.keys()) != set(b.keys()):
+            return False
+        return all(publication_values_equal(a[k], b[k]) for k in a)
+
+    # ------------------------------------------------------------------ #
+    # list — order-independent via hashable set representation
+    # ------------------------------------------------------------------ #
+    if isinstance(a, list):
+        if len(a) != len(b):
+            return False
+        try:
+            return (
+                {_make_hashable(item) for item in a}
+                == {_make_hashable(item) for item in b}
+            )
+        except TypeError:
+            # Unhashable leaf type encountered — fall back to sorted string
+            # comparison so the function never raises unexpectedly.
+            return sorted(str(x) for x in a) == sorted(str(x) for x in b)
+
+    # ------------------------------------------------------------------ #
+    # Scalars: str, bool, int, float
+    # ------------------------------------------------------------------ #
+    return a == b
+
+
 def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     """
     Fetch publication information from external repositories given a DOI.
@@ -692,16 +811,13 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         for key in pub_info:
             if key in curr_pub and curr_pub.get(key) != pub_info[key]:
                 # assure ourselves there is really a different value
-
-                    "current": curr_pub.get(key),
-                    "fetched": pub_info[key]
-                }
+                if not publication_values_equal(curr_pub.get(key), pub_info[key]):
+                    # we have an update to make
+                    curr_pub[key] = pub_info[key]
             else:
                 continue
-        if differences:
-            print(f"Differences found for existing publication {curr_pub['uuid']}: {differences}")
 
-    return pub_info
+    return info[0], pub_info
 
 
 ACCESSION_PATTERN = re.compile(r'SMHTPB\d{7}')
@@ -774,17 +890,27 @@ def prepare_pub_metadata(connection, **kwargs):
         check.summary = "No IDs provided for metadata update"
         return check
     pubs_to_post = []
+    pubs_to_patch = []
+    problems = []
     id_list = parse_input_ids(id_str)
     import pdb; pdb.set_trace()
     for idinfo in id_list:
         if pub_info := fetch_publication_info(connection, idinfo):
-            pubs_to_post.append(pub_info)
+            if pub_info[0] == 'create':
+                pubs_to_post.append(pub_info[1])
+            elif pub_info[0] == 'update':
+                pubs_to_patch.append(pub_info[1])
+            else:
+                problems.append(idinfo)
     check.full_output = {"input": id_str,
                          "parsed_idinfo": id_list,
-                         "pubs_to_post": pubs_to_post}
-    if pubs_to_post:
+                         "pubs_to_post": pubs_to_post,
+                         "pubs_to_patch": pubs_to_patch,
+                         "problems": problems
+                         }
+    if pubs_to_post or pubs_to_patch:
         check.status = constants.CHECK_WARN
-        check.summary = f"{len(pubs_to_post)} publications ready for metadata update"
+        check.summary = f"{len(pubs_to_post)} pubs to create, {len(pubs_to_patch)} pubs to update, {len(problems)} invalid records"
         # check.allow_action = True
     else:
         check.status = constants.CHECK_FAIL
