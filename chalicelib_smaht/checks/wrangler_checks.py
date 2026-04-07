@@ -3,7 +3,7 @@ from os import name
 import time
 import random
 from unittest import result
-import datetime
+from datetime import datetime
 import requests
 import re
 import html
@@ -372,15 +372,15 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
         inst_name = crossref_data["institution"].get("name")
         if inst_name in constants.RXIV_PREFIXES.get(doi_prefix, []):
             result["journal"] = inst_name
-    
-     # Journal URL
+
+    # Journal URL
     if "resource" in crossref_data and "primary" in crossref_data["resource"]:
         if crossref_data["resource"]["primary"].get("URL"):
             result["journal_url"] = crossref_data["resource"]["primary"]["URL"]
 
     # Publication date
     result["date_published"] = normalize_date(
-        _get_date_published_from_crossref(crossref_data)           # <-- changed
+        _get_date_published_from_crossref(crossref_data)
     )
 
     # Check if preprint - may be more types in future
@@ -732,7 +732,7 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         return {}
 
     pub_info = {
-        "consortium": "smaht",
+        "consortia": ["smaht"],
         "doi": doi,
         "pubmed_id": None,
         "is_preprint": False,
@@ -809,17 +809,23 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
 
     # here is where to compare existing metdata if there if curr_pub and apply updates
     if curr_pub:
+        update_fields = {}
         # for now we will just print out any differences and not update, but this is where update logic would go
         for key in pub_info:
-            if key in curr_pub and curr_pub.get(key) != pub_info[key]:
+            if key not in curr_pub and pub_info[key]:
+                # new field to add
+                update_fields[key] = pub_info[key]
+            elif key in curr_pub and curr_pub.get(key) != pub_info[key]:
                 # assure ourselves there is really a different value
                 if not publication_values_equal(curr_pub.get(key), pub_info[key]):
                     # we have an update to make
-                    curr_pub[key] = pub_info[key]
+                    update_fields[key] = pub_info[key]
             else:
                 continue
+            if update_fields:
+                update_fields["uuid"] = curr_pub["uuid"]
 
-    return info[0], pub_info
+    return info[0], update_fields if info[0] == 'update' else pub_info
 
 
 ACCESSION_PATTERN = re.compile(r'SMAPB[A-Z0-9]{7}')
