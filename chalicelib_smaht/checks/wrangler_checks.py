@@ -810,7 +810,6 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     # here is where to compare existing metdata if there if curr_pub and apply updates
     if curr_pub:
         update_fields = {}
-        # for now we will just print out any differences and not update, but this is where update logic would go
         for key in pub_info:
             if key not in curr_pub and pub_info[key]:
                 # new field to add
@@ -882,14 +881,14 @@ def parse_input_ids(input_string: str) -> list[tuple[str, Optional[str], Optiona
     return result
 
 
-#@check_function(action="update_pub_metadata")
-@check_function(doi_acc_list=[])
+@check_function(action="update_pub_metadata", doi_acc_list=[])
 def prepare_pub_metadata(connection, **kwargs):
-    # can take as input a comma-separated list of DOIs with optional accessions for existing publications to update, in the format:
+    # can take as input a comma-separated list of DOIs with optional accessions 
+    # for existing publications to update, in the format:
     # 10.1000/xyz123|SMHTPB1234567, 10.1000/abc456
     check = CheckResult(connection, "prepare_pub_metadata")
-    # check.action = "update_pub_metadata"
-    # check.allow_action = False
+    check.action = "update_pub_metadata"
+    check.allow_action = False
     wait = round(random.uniform(0.1, random_wait), 1)
     time.sleep(wait)
     id_str = kwargs.get('doi_acc_list')
@@ -918,9 +917,109 @@ def prepare_pub_metadata(connection, **kwargs):
     if pubs_to_post or pubs_to_patch:
         check.status = constants.CHECK_WARN
         check.summary = f"{len(pubs_to_post)} pubs to create, {len(pubs_to_patch)} pubs to update, {len(problems)} invalid records"
-        # check.allow_action = True
+        check.allow_action = True
     else:
         check.status = constants.CHECK_FAIL
         check.summary = "No valid publication metadata retrieved for provided IDs"
 
     return check
+
+
+@action_function()
+def update_pub_metadata(connection, **kwargs):
+    """
+    Action for prepare_pub_metadata check.
+
+    Reads pubs_to_post / pubs_to_patch from the check's full_output and:
+      - POSTs each new publication to the portal as a Publication item.
+      - PATCHes each existing publication using the uuid stored in the dict.
+
+    None-valued fields are stripped from POST bodies so the server schema
+    validator does not see empty required/optional fields.
+    """
+    action = ActionResult(connection, "update_pub_metadata")
+    action_logs = {
+        "post_success": [],
+        "post_failure": [],
+        "patch_success": [],
+        "patch_failure": [],
+    }
+
+    # Retrieve the paired check result
+    check_result = action.get_associated_check_result(kwargs)
+    full_output = check_result.get("full_output", {})
+
+    pubs_to_post = full_output.get("pubs_to_post", [])
+    pubs_to_patch = full_output.get("pubs_to_patch", [])
+
+    # ------------------------------------------------------------------
+    # POST – create new Publication items
+    # ------------------------------------------------------------------
+    for pub_data in pubs_to_post:
+        doi = pub_data.get("doi", "unknown")
+        # Strip None/empty values so the server validator stays happy
+        clean_data = {k: v for k, v in pub_data.items() if v is not None and v != []}
+        try:
+            ff_utils.post_metadata(clean_data, "Publication", key=connection.ff_keys)
+            action_logs["post_success"].append(
+                f"Created publication — DOI: {doi}"
+            )
+        except Exception as e:
+            action_logs["post_failure"].append(
+                f"Failed to create publication — DOI: {doi} | Error: {e}"
+            )
+
+    # ------------------------------------------------------------------
+    # PATCH – update existing Publication items
+    # ------------------------------------------------------------------
+    for patch_data in pubs_to_patch:
+        uuid = patch_data.get("uuid")
+        if not uuid:
+            action_logs["patch_failure"].append(
+                f"Skipped patch — no UUID found in patch data: {patch_data}"
+            )
+            continue
+
+        # uuid is only needed to address the item; exclude it from the body
+        patch_body = {
+            k: v for k, v in patch_data.items()
+            if k != "uuid" and v is not None and v != []
+        }
+        doi = patch_body.get("doi", uuid)
+
+        try:
+            ff_utils.patch_metadata(patch_body, obj_id=uuid, key=connection.ff_keys)
+            action_logs["patch_success"].append(
+                f"Updated publication {uuid} — DOI: {doi}"
+            )
+        except Exception as e:
+            action_logs["patch_failure"].append(
+                f"Failed to update publication {uuid} — DOI: {doi} | Error: {e}"
+            )
+
+    # ------------------------------------------------------------------
+    # Determine final action status
+    # ------------------------------------------------------------------
+    total_attempted = len(pubs_to_post) + len(pubs_to_patch)
+    total_success   = len(action_logs["post_success"]) + len(action_logs["patch_success"])
+    total_failure   = len(action_logs["post_failure"]) + len(action_logs["patch_failure"])
+
+    if total_attempted == 0:
+        action.status  = constants.ACTION_WARN
+        action.summary = "Action ran but found nothing to post or patch"
+    elif total_failure == 0:
+        action.status  = constants.ACTION_PASS
+        action.summary = (
+            f"All {total_attempted} operations succeeded — "
+            f"created: {len(action_logs['post_success'])}, "
+            f"updated: {len(action_logs['patch_success'])}"
+        )
+    else:
+        action.status  = constants.ACTION_WARN
+        action.summary = (
+            f"{total_success} succeeded, {total_failure} failed "
+            f"out of {total_attempted} total operations"
+        )
+
+    action.output = action_logs
+    return action
