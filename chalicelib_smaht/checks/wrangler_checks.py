@@ -716,6 +716,7 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     if info[0] == 'invalid':
         print(f"Invalid input: {info}")
         return {}
+    curr_pub = None
     if info[0] == 'update' and not (
         curr_pub := ff_utils.get_metadata(info[2], key=connection.ff_keys)
     ):
