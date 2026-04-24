@@ -758,7 +758,7 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     crossref_response = get_crossref_metadata(doi)
     if crossref_response:
         crossref_metadata = parse_crossref_metadata(crossref_response)
-        
+
     if crossref_metadata:
         # populate pub_info from CrossRef data
         pub_info.update(crossref_metadata)
@@ -795,7 +795,7 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         else:
             if pubmed_metadata.get("authors"):
                 pub_info["authors"] = pubmed_metadata["authors"]
-            
+
         # Merge data, preferring PubMed data for certain fields
         for key, value in pubmed_metadata.items():
             if key == "authors":
@@ -820,6 +820,13 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
                 if not publication_values_equal(curr_pub.get(key), pub_info[key]):
                     # we have an update to make
                     update_fields[key] = pub_info[key]
+                # check if the repository_urls will be updated - if so, we want to
+                # move the existing URLs to previous_repository_urls for update
+                if key == "repository_urls" and update_fields.get(key):
+                    existing_urls = set(curr_pub.get("repository_urls", []))
+                    new_urls = set(update_fields[key])
+                    if existing_urls and new_urls:
+                        update_fields["previous_repository_urls"] = list(existing_urls - new_urls)
             else:
                 continue
             if update_fields:
