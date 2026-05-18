@@ -7,6 +7,13 @@ foursight-smaht
 Change Log
 ----------
 
+0.9.0
+======
+
+* New check and action for fetching metadata for publications given a doi.
+* action will post or patch the metadata to the portal
+
+
 0.8.18
 ======
 * Increase limits of lifecycle status checks.
