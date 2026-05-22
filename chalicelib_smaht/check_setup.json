@@ -566,7 +566,7 @@
             "<env-name>"
         ]
     },
-        "untagged_donors_with_released_files": {
+    "untagged_donors_with_released_files": {
         "title": "Check for untagged donors with released files",
         "group": "Audit Checks",
         "schedule": {
@@ -577,6 +577,22 @@
                         "queue_action": "prod"
                     },
                     "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "<env-name>"
+        ]
+    },
+    "prepare_pub_metadata": {
+        "title": "Check to retrieve Publication Metadata",
+        "group": "Audit Checks",
+        "schedule": {
+            "manual_checks": {
+                "all": {
+                    "kwargs": {
+                        "primary": true
+                    }
                 }
             }
         },

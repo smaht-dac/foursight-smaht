@@ -7,6 +7,17 @@ foursight-smaht
 Change Log
 ----------
 
+0.9.1
+======
+* Add publication fetch check to check_setup.json - with manual 'schedule'
+
+
+0.8.20
+======
+* Update pyproject.toml to include update to foursight-core with security fixes.
+* Note the version bump was out of order and going back up to 0.9.x going forward.
+
+
 0.9.0
 ======
 
