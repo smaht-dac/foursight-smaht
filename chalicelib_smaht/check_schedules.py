@@ -30,6 +30,7 @@ SCHEDULES = {
         'early_morning_checks': Cron('0', '8', '*', '*', '?', '*'),
         'morning_checks': Cron('0', '10', '*', '*', '?', '*'),
         'morning_checks_2': Cron('15', '10', '*', '*', '?', '*'),
+        'morning_checks_3': Cron('0', '9', '*', '*', '?', '*'),
         'evening_checks': Cron('0', '22', '*', '*', '?', '*'),
         'monday_checks': Cron('0', '9', '?', '*', '2', '*'),
         'monthly_checks': Cron('0', '9', '1', '*', '?', '*'),
@@ -46,6 +47,7 @@ SCHEDULES = {
         'early_morning_checks': Cron('0', '8', '*', '*', '?', '*'),
         'morning_checks': Cron('30', '10', '*', '*', '?', '*'),
         'morning_checks_2': Cron('45', '10', '*', '*', '?', '*'),
+        'morning_checks_3': Cron('30', '9', '*', '*', '?', '*'),
         'evening_checks': Cron('0', '22', '*', '*', '?', '*'),
         'monday_checks': Cron('30', '9', '?', '*', '2', '*'),
         'monthly_checks': Cron('30', '9', '1', '*', '?', '*'),
@@ -63,6 +65,11 @@ def manual_checks():
 @schedule(SCHEDULES, stage=STAGE, disabled_stages=DISABLED_STAGES)
 def morning_checks(event):
     app.core.queue_scheduled_checks('all', 'morning_checks')
+
+
+@schedule(SCHEDULES, stage=STAGE, disabled_stages=DISABLED_STAGES)
+def morning_checks_3(event):
+    app.core.queue_scheduled_checks('all', 'morning_checks_3')
 
 
 @schedule(SCHEDULES, stage=STAGE, disabled_stages=DISABLED_STAGES)
