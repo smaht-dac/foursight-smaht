@@ -1031,3 +1031,137 @@ def update_pub_metadata(connection, **kwargs):
 
     action.output = action_logs
     return action
+
+
+# ---------------------------------------------------------------------------
+# TPC → non-TPC tissue sample metadata sync
+# ---------------------------------------------------------------------------
+
+def _get_tpc_sample(external_id, ff_keys):
+    """Return the TPC tissue_sample matching external_id, or None."""
+    results = ff_utils.search_metadata(
+        f"search/?type=TissueSample"
+        f"&external_id={external_id}"
+        f"&submission_centers.display_title={constants.TPC_NAME.replace(' ', '+')}"
+        f"&status!=deleted",
+        key=ff_keys,
+    )
+    return results[0] if results else None
+
+
+def _build_tpc_field_patch(tpc_sample, target_sample):
+    """Return field-only patch dict (no tags), or None if nothing to transfer."""
+    patch = {}
+    if tpc_sample.get("preservation_type") and not target_sample.get("preservation_type"):
+        patch["preservation_type"] = tpc_sample["preservation_type"]
+    for field in ("description", "processing_notes"):
+        tpc_val = tpc_sample.get(field)
+        target_val = target_sample.get(field)
+        if tpc_val and target_val:
+            patch[field] = f"GCC: {target_val}; TPC: {tpc_val}"
+        elif tpc_val:
+            patch[field] = f"TPC: {tpc_val}"
+    return patch or None
+
+
+@check_function(action="patch_tpc_tissue_sample_metadata", samples_per_run=200)
+def sync_tpc_tissue_sample_metadata(connection, **kwargs):
+    """Find non-TPC tissue samples that need metadata synced from their matching TPC
+    sample (matched by external_id) and have not yet been processed (no
+    tpc_metadata_synced tag).  Runs up to samples_per_run lookups per invocation to
+    stay within Lambda timeout."""
+    check = CheckResult(connection, "sync_tpc_tissue_sample_metadata")
+    check.action = "patch_tpc_tissue_sample_metadata"
+    check.allow_action = False
+    wait = round(random.uniform(0.1, random_wait), 1)
+    time.sleep(wait)
+
+    samples_per_run = kwargs.get("samples_per_run", 200)
+    query = (
+        f"search/?type=TissueSample"
+        f"&submission_centers.display_title!={constants.TPC_NAME.replace(' ', '+')}"
+        f"&tags!={constants.TPC_METADATA_SYNCED_TAG}"
+        f"&status!=deleted"
+        f"&limit={samples_per_run}"
+    )
+    candidates = ff_utils.search_metadata(query, key=connection.ff_keys)
+
+    to_patch = []
+    for sample in candidates:
+        external_id = sample.get("external_id")
+        if not external_id:
+            continue
+        tpc_sample = _get_tpc_sample(external_id, connection.ff_keys)
+        if not tpc_sample:
+            continue
+        field_patch = _build_tpc_field_patch(tpc_sample, sample)
+        to_patch.append({
+            "uuid": sample["uuid"],
+            "external_id": external_id,
+            "patch": field_patch or {},
+        })
+
+    if not to_patch:
+        check.status = constants.CHECK_PASS
+        check.summary = "All non-TPC tissue samples have been synced with TPC metadata"
+        return check
+
+    check.status = constants.CHECK_WARN
+    check.allow_action = True
+    check.summary = f"{len(to_patch)} non-TPC tissue sample(s) need TPC metadata synced"
+    check.brief_output = f"{len(to_patch)} samples to patch (batch size: {samples_per_run})"
+    check.full_output = {"to_patch": to_patch}
+    return check
+
+
+@action_function()
+def patch_tpc_tissue_sample_metadata(connection, **kwargs):
+    """Apply TPC metadata (preservation_type, description, processing_notes) to
+    non-TPC tissue samples identified by sync_tpc_tissue_sample_metadata, and mark
+    each with the tpc_metadata_synced tag."""
+    action = ActionResult(connection, "patch_tpc_tissue_sample_metadata")
+    action_logs = {"patch_success": [], "patch_failure": []}
+
+    check_result = action.get_associated_check_result(kwargs)
+    to_patch = check_result.get("full_output", {}).get("to_patch", [])
+
+    for item in to_patch:
+        uuid = item.get("uuid")
+        external_id = item.get("external_id", uuid)
+        field_patch = item.get("patch", {})
+        try:
+            existing_tags = ff_utils.get_metadata(
+                uuid, key=connection.ff_keys
+            ).get("tags", [])
+        except Exception as e:
+            action.status = constants.ACTION_WARN
+            action_logs["patch_failure"].append(
+                f"Error fetching tags for {uuid} (external_id: {external_id}): {e}"
+            )
+            continue
+
+        patch_body = {
+            **field_patch,
+            "tags": list(set(existing_tags + [constants.TPC_METADATA_SYNCED_TAG])),
+        }
+        try:
+            ff_utils.patch_metadata(patch_body, obj_id=uuid, key=connection.ff_keys)
+            action_logs["patch_success"].append(
+                f"Patched {uuid} (external_id: {external_id}): {list(patch_body.keys())}"
+            )
+        except Exception as e:
+            action.status = constants.ACTION_WARN
+            action_logs["patch_failure"].append(
+                f"Error patching {uuid} (external_id: {external_id}): {e}"
+            )
+
+    if not action_logs["patch_failure"] and len(action_logs["patch_success"]) == len(to_patch):
+        action.status = constants.ACTION_PASS
+        action.summary = f"Successfully synced TPC metadata for {len(to_patch)} tissue sample(s)"
+    else:
+        action.summary = (
+            f"{len(action_logs['patch_success'])} succeeded, "
+            f"{len(action_logs['patch_failure'])} failed"
+        )
+    action.output = action_logs
+    return action
