@@ -1081,7 +1081,7 @@ def sync_tpc_tissue_sample_metadata(connection, **kwargs):
         f"search/?type=TissueSample"
         f"&submission_centers.display_title!={constants.TPC_NAME.replace(' ', '+')}"
         f"&tags!={constants.TPC_METADATA_SYNCED_TAG}"
-        f"&status!=deleted"
+        f"&status=open&status=open-early"
         f"&limit={samples_per_run}"
     )
     candidates = ff_utils.search_metadata(query, key=connection.ff_keys)
