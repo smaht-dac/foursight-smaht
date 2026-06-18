@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+0.9.2
+======
+* Add new check and action to transfer some properties from TPC-submitted tissue samples to matching GCC/TTD-submitted tissue samples (matched by external_id) and add a tag to indicate the sync has been done.
+
+
 0.9.1
 ======
 * Add publication fetch check to check_setup.json - with manual 'schedule'
