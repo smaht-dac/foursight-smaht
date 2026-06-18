@@ -1064,7 +1064,7 @@ def _build_tpc_field_patch(tpc_sample, target_sample):
     return patch or None
 
 
-@check_function(action="patch_tpc_tissue_sample_metadata", samples_per_run=200)
+@check_function(action="patch_tpc_tissue_sample_metadata", samples_per_run=1000)
 def sync_tpc_tissue_sample_metadata(connection, **kwargs):
     """Find non-TPC tissue samples that need metadata synced from their matching TPC
     sample (matched by external_id) and have not yet been processed (no
