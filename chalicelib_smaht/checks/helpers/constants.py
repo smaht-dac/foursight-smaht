@@ -25,6 +25,7 @@ RELEASED_FILE_STATUSES = [
 DONOR_W_FILES_TAG = "has_released_files"
 TPC_NAME = "NDRI TPC"
 DAC_NAME = "HMS DAC"
+TPC_METADATA_SYNCED_TAG = "tpc_metadata_synced"
 
 # constants for external resource retrieval
 CROSSREF_API = "https://api.crossref.org/works/"

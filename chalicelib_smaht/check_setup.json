@@ -566,6 +566,22 @@
             "<env-name>"
         ]
     },
+    "sync_tpc_tissue_sample_metadata": {
+        "title": "Sync TPC metadata to non-TPC tissue samples",
+        "group": "Audit Checks",
+        "schedule": {
+            "manual_checks": {
+                "all": {
+                    "kwargs": {
+                        "primary": true
+                    }
+                }
+            }
+        },
+        "display": [
+            "<env-name>"
+        ]
+    },
     "untagged_donors_with_released_files": {
         "title": "Check for untagged donors with released files",
         "group": "Audit Checks",
