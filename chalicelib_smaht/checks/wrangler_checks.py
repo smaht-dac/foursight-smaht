@@ -209,11 +209,11 @@ def get_pubmed_metadata(pmid: str) -> Optional[Dict[str, Any]]:
 
 def get_rxiv_metadata(doi: str) -> Optional[Dict[str, Any]]:
     """Retrieve metadata from bioRxiv/medRxiv."""
-    try:
-        # Extract the bioRxiv ID from DOI (e.g., 10.1101/2023.01.01.522534)
-        # rxiv_id = doi.split("/")[-1]
-        servers = constants.RXIV_PREFIXES.get(doi.split("/")[0], [])
-        for server in servers:
+    # Extract the bioRxiv ID from DOI (e.g., 10.1101/2023.01.01.522534)
+    # rxiv_id = doi.split("/")[-1]
+    servers = constants.RXIV_PREFIXES.get(doi.split("/")[0], [])
+    for server in servers:
+        try:
             url = f"{constants.RXIV_API}/{server}/{doi}"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
@@ -221,8 +221,8 @@ def get_rxiv_metadata(doi: str) -> Optional[Dict[str, Any]]:
             data = response.json()
             if data.get("collection") and len(data["collection"]) > 0:
                 return server, data["collection"][0]
-    except Exception as e:
-        print(f"Error fetching Rxiv metadata: {e}")
+        except Exception as e:
+            print(f"Error fetching Rxiv metadata from {server}: {e}")
 
     return None, None
 
@@ -370,8 +370,9 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
     elif isinstance(crossref_data.get("institution"), dict):
         doi_prefix = crossref_data.get('DOI', '').split('/')[0]
         inst_name = crossref_data["institution"].get("name")
-        if inst_name in constants.RXIV_PREFIXES.get(doi_prefix, []):
-            result["journal"] = inst_name
+        rxiv_servers = constants.RXIV_PREFIXES.get(doi_prefix, [])
+        if inst_name and inst_name.lower() in rxiv_servers:
+            result["journal"] = inst_name.lower()
 
     # Journal URL
     if "resource" in crossref_data and "primary" in crossref_data["resource"]:
