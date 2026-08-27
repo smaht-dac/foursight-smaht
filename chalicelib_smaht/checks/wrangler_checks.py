@@ -365,14 +365,16 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
     result["authors"] = authors
 
     # Journal
+    doi_prefix = crossref_data.get('DOI', '').split('/')[0]
     if "container-title" in crossref_data and crossref_data["container-title"]:
         result["journal"] = crossref_data["container-title"][0]
     elif isinstance(crossref_data.get("institution"), dict):
-        doi_prefix = crossref_data.get('DOI', '').split('/')[0]
         inst_name = crossref_data["institution"].get("name")
         rxiv_servers = constants.RXIV_PREFIXES.get(doi_prefix, [])
         if inst_name and inst_name.lower() in rxiv_servers:
             result["journal"] = inst_name.lower()
+    elif doi_prefix in constants.PREPRINT_JOURNAL_NAMES:
+        result["journal"] = constants.PREPRINT_JOURNAL_NAMES[doi_prefix]
 
     # Journal URL
     if "resource" in crossref_data and "primary" in crossref_data["resource"]:
@@ -779,11 +781,16 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
             if value and not pub_info[key]:
                 pub_info[key] = value
 
-        # add Rxiv URL to repository URLs - this resolves to either bioRxiv or medRxiv
-        pub_info["repository_urls"].append(f"https://doi.org/{doi}")
         if pmid:
             pub_info["pubmed_id"] = pmid
             pub_info["repository_urls"].append(f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
+
+    if pub_info["is_preprint"]:
+        # record the DOI landing page for any preprint source, not just
+        # bioRxiv/medRxiv (e.g. SSRN, resolved purely via CrossRef)
+        doi_url = f"https://doi.org/{doi}"
+        if doi_url not in pub_info["repository_urls"]:
+            pub_info["repository_urls"].append(doi_url)
 
     # Fetch PubMed metadata
     pubmed_xml = get_pubmed_metadata(pmid)

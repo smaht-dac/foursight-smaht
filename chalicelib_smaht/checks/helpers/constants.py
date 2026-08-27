@@ -37,3 +37,8 @@ RXIV_PREFIXES = {
     "10.1101": ["biorxiv", "medrxiv"],
     "10.64898": ["biorxiv", "medrxiv"],
 }
+# fallback "journal" display name for preprint DOI prefixes when CrossRef
+# supplies neither a container-title nor a matching institution name
+PREPRINT_JOURNAL_NAMES = {
+    "10.2139": "ssrn",
+}
