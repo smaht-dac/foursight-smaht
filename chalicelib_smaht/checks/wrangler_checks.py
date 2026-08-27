@@ -368,13 +368,16 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
     doi_prefix = crossref_data.get('DOI', '').split('/')[0]
     if "container-title" in crossref_data and crossref_data["container-title"]:
         result["journal"] = crossref_data["container-title"][0]
-    elif isinstance(crossref_data.get("institution"), dict):
-        inst_name = crossref_data["institution"].get("name")
+    else:
+        # CrossRef returns "institution" as a list of objects
+        # (e.g. [{"name": "bioRxiv"}]), not a single object
+        institution = crossref_data.get("institution") or []
+        inst_name = institution[0].get("name") if institution else None
         rxiv_servers = constants.RXIV_PREFIXES.get(doi_prefix, [])
         if inst_name and inst_name.lower() in rxiv_servers:
             result["journal"] = inst_name.lower()
-    elif doi_prefix in constants.PREPRINT_JOURNAL_NAMES:
-        result["journal"] = constants.PREPRINT_JOURNAL_NAMES[doi_prefix]
+        elif doi_prefix in constants.PREPRINT_JOURNAL_NAMES:
+            result["journal"] = constants.PREPRINT_JOURNAL_NAMES[doi_prefix]
 
     # Journal URL
     if "resource" in crossref_data and "primary" in crossref_data["resource"]:
@@ -785,9 +788,11 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
             pub_info["pubmed_id"] = pmid
             pub_info["repository_urls"].append(f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
 
-    if pub_info["is_preprint"]:
-        # record the DOI landing page for any preprint source, not just
-        # bioRxiv/medRxiv (e.g. SSRN, resolved purely via CrossRef)
+    doi_prefix = doi.split("/")[0]
+    if doi_prefix in constants.RXIV_PREFIXES or doi_prefix in constants.PREPRINT_JOURNAL_NAMES:
+        # record the DOI landing page for known preprint archives
+        # (bioRxiv/medRxiv, SSRN) - narrower than is_preprint, which
+        # CrossRef also sets True for reports/datasets/dissertations/etc.
         doi_url = f"https://doi.org/{doi}"
         if doi_url not in pub_info["repository_urls"]:
             pub_info["repository_urls"].append(doi_url)
