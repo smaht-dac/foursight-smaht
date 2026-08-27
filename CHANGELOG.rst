@@ -7,6 +7,15 @@ foursight-smaht
 Change Log
 ----------
 
+0.9.3
+======
+* update the publication fetch check to handle newly registered preprint DOI prefix (10.64898) for bio/medrxiv preprints
+* add handling for SSRN preprints (10.2139) in publication fetch check, which are resolved via CrossRef but have no bio/medrxiv landing page
+* fix 2 latent bugs in publication fetch check that could cause some preprint fetches to fail:
+  - if a request to biorxiv failed with an exception and the fall through to medrxiv was not attempted 
+  - a comparison of biorxiv to bioRxiv was made case insesitive
+
+
 0.9.2
 ======
 * Add new check and action to transfer some properties from TPC-submitted tissue samples to matching GCC/TTD-submitted tissue samples (matched by external_id) and add a tag to indicate the sync has been done.
