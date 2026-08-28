@@ -13,7 +13,7 @@ Change Log
 * add handling for SSRN preprints (10.2139) in publication fetch check, which are resolved via CrossRef but have no bio/medrxiv landing page
 * fix 2 latent bugs in publication fetch check that could cause some preprint fetches to fail:
   - if a request to biorxiv failed with an exception and the fall through to medrxiv was not attempted 
-  - a comparison of biorxiv to bioRxiv was made case insesitive
+  - a comparison of biorxiv to bioRxiv was made case insensitive
 
 
 0.9.2
