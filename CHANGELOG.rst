@@ -7,6 +7,13 @@ foursight-smaht
 Change Log
 ----------
 
+0.9.4
+======
+* update python version requirement to >=3.10,<3.13
+* update foursight-core and dcicutils dependencies to latest versions (5.10.1 and 8.19.0 respectively)
+* update lock file to reflect new dependencies
+  
+
 0.9.3
 ======
 * update the publication fetch check to handle newly registered preprint DOI prefix (10.64898) for bio/medrxiv preprints
