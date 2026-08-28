@@ -7,7 +7,7 @@ from datetime import datetime
 import requests
 import re
 import html
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from dcicutils import ff_utils
 
 # Use confchecks to import decorators object and its methods for each check module
@@ -708,7 +708,7 @@ def publication_values_equal(a: Any, b: Any) -> bool:
     return a == b
 
 
-def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
+def fetch_publication_info(connection, info: tuple) -> Tuple[str, Any]:
     """
     Fetch publication information from external repositories given a DOI.
 
@@ -717,17 +717,22 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         info: A tuple containing the operation, DOI and optional accession number.
 
     Returns:
-        Dictionary containing publication metadata
+        A tuple of (status, payload). On success, status is 'create'/'update'
+        and payload is the publication metadata dict (or update fields dict).
+        On failure, status is 'invalid'/'unresolved' and payload is a
+        human-readable reason.
     """
     if info[0] == 'invalid':
-        print(f"Invalid input: {info}")
-        return {}
+        reason = f"Invalid input: {info}"
+        print(reason)
+        return 'invalid', reason
     curr_pub = None
     if info[0] == 'update' and not (
         curr_pub := ff_utils.get_metadata(info[2], key=connection.ff_keys)
     ):
-        print(f"Invalid input for update operation (check your accession): {info}")
-        return {}
+        reason = f"Invalid input for update operation (check your accession): {info}"
+        print(reason)
+        return 'invalid', reason
     doi = info[1]
     if info[0] != 'update' and (
         duplicate_pub := ff_utils.search_metadata(
@@ -735,8 +740,9 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
             key=connection.ff_keys
         )
     ):
-        print(f"Publication with DOI {doi} already exists: {duplicate_pub['uuid']}")
-        return {}
+        reason = f"Publication with DOI {doi} already exists: {duplicate_pub['uuid']}"
+        print(reason)
+        return 'invalid', reason
 
     pub_info = {
         "consortia": ["smaht"],
@@ -757,8 +763,9 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     pubmed_metadata = None
 
     if not doi.startswith("10."):
-        print(f"Invalid DOI: {doi}")
-        return {}
+        reason = f"Invalid DOI: {doi}"
+        print(reason)
+        return 'invalid', reason
 
     # Try to fetch from CrossRef (works for most DOIs)
     crossref_response = get_crossref_metadata(doi)
@@ -777,6 +784,13 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
 
     # see if we can get pubmed id from doi
     pmid = get_pmid_from_doi(doi)
+
+    if not crossref_response and not rxiv_metadata and not pmid:
+        # nothing acknowledged this DOI exists anywhere - don't create/update
+        # a publication record from a DOI that couldn't be found at all
+        reason = f"DOI could not be resolved via CrossRef, bioRxiv/medRxiv, or PubMed: {doi}"
+        print(reason)
+        return 'unresolved', reason
 
     if rxiv_metadata:
         # Merge data, preferring existing pub_info values
@@ -922,13 +936,13 @@ def prepare_pub_metadata(connection, **kwargs):
     problems = []
     id_list = parse_input_ids(id_str)
     for idinfo in id_list:
-        if pub_info := fetch_publication_info(connection, idinfo):
-            if pub_info[0] == 'create':
-                pubs_to_post.append(pub_info[1])
-            elif pub_info[0] == 'update':
-                pubs_to_patch.append(pub_info[1])
-            else:
-                problems.append(idinfo)
+        pub_info = fetch_publication_info(connection, idinfo)
+        if pub_info[0] == 'create':
+            pubs_to_post.append(pub_info[1])
+        elif pub_info[0] == 'update':
+            pubs_to_patch.append(pub_info[1])
+        else:
+            problems.append({"doi": idinfo[1], "accession": idinfo[2], "reason": pub_info[1]})
     check.full_output = {"input": id_str,
                          "parsed_idinfo": id_list,
                          "pubs_to_post": pubs_to_post,
