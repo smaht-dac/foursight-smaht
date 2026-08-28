@@ -7,7 +7,7 @@ from datetime import datetime
 import requests
 import re
 import html
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from dcicutils import ff_utils
 
 # Use confchecks to import decorators object and its methods for each check module
@@ -209,11 +209,11 @@ def get_pubmed_metadata(pmid: str) -> Optional[Dict[str, Any]]:
 
 def get_rxiv_metadata(doi: str) -> Optional[Dict[str, Any]]:
     """Retrieve metadata from bioRxiv/medRxiv."""
-    try:
-        # Extract the bioRxiv ID from DOI (e.g., 10.1101/2023.01.01.522534)
-        # rxiv_id = doi.split("/")[-1]
-        servers = constants.RXIV_PREFIXES.get(doi.split("/")[0], [])
-        for server in servers:
+    # Extract the bioRxiv ID from DOI (e.g., 10.1101/2023.01.01.522534)
+    # rxiv_id = doi.split("/")[-1]
+    servers = constants.RXIV_PREFIXES.get(doi.split("/")[0], [])
+    for server in servers:
+        try:
             url = f"{constants.RXIV_API}/{server}/{doi}"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
@@ -221,8 +221,8 @@ def get_rxiv_metadata(doi: str) -> Optional[Dict[str, Any]]:
             data = response.json()
             if data.get("collection") and len(data["collection"]) > 0:
                 return server, data["collection"][0]
-    except Exception as e:
-        print(f"Error fetching Rxiv metadata: {e}")
+        except Exception as e:
+            print(f"Error fetching Rxiv metadata from {server}: {e}")
 
     return None, None
 
@@ -365,13 +365,19 @@ def parse_crossref_metadata(crossref_data: Dict[str, Any]) -> Dict[str, Any]:
     result["authors"] = authors
 
     # Journal
+    doi_prefix = crossref_data.get('DOI', '').split('/')[0]
     if "container-title" in crossref_data and crossref_data["container-title"]:
         result["journal"] = crossref_data["container-title"][0]
-    elif isinstance(crossref_data.get("institution"), dict):
-        doi_prefix = crossref_data.get('DOI', '').split('/')[0]
-        inst_name = crossref_data["institution"].get("name")
-        if inst_name in constants.RXIV_PREFIXES.get(doi_prefix, []):
-            result["journal"] = inst_name
+    else:
+        # CrossRef returns "institution" as a list of objects
+        # (e.g. [{"name": "bioRxiv"}]), not a single object
+        institution = crossref_data.get("institution") or []
+        inst_name = institution[0].get("name") if institution else None
+        rxiv_servers = constants.RXIV_PREFIXES.get(doi_prefix, [])
+        if inst_name and inst_name.lower() in rxiv_servers:
+            result["journal"] = inst_name.lower()
+        elif doi_prefix in constants.PREPRINT_JOURNAL_NAMES:
+            result["journal"] = constants.PREPRINT_JOURNAL_NAMES[doi_prefix]
 
     # Journal URL
     if "resource" in crossref_data and "primary" in crossref_data["resource"]:
@@ -702,7 +708,7 @@ def publication_values_equal(a: Any, b: Any) -> bool:
     return a == b
 
 
-def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
+def fetch_publication_info(connection, info: tuple) -> Tuple[str, Any]:
     """
     Fetch publication information from external repositories given a DOI.
 
@@ -711,17 +717,22 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
         info: A tuple containing the operation, DOI and optional accession number.
 
     Returns:
-        Dictionary containing publication metadata
+        A tuple of (status, payload). On success, status is 'create'/'update'
+        and payload is the publication metadata dict (or update fields dict).
+        On failure, status is 'invalid'/'unresolved' and payload is a
+        human-readable reason.
     """
     if info[0] == 'invalid':
-        print(f"Invalid input: {info}")
-        return {}
+        reason = f"Invalid input: {info}"
+        print(reason)
+        return 'invalid', reason
     curr_pub = None
     if info[0] == 'update' and not (
         curr_pub := ff_utils.get_metadata(info[2], key=connection.ff_keys)
     ):
-        print(f"Invalid input for update operation (check your accession): {info}")
-        return {}
+        reason = f"Invalid input for update operation (check your accession): {info}"
+        print(reason)
+        return 'invalid', reason
     doi = info[1]
     if info[0] != 'update' and (
         duplicate_pub := ff_utils.search_metadata(
@@ -729,8 +740,9 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
             key=connection.ff_keys
         )
     ):
-        print(f"Publication with DOI {doi} already exists: {duplicate_pub['uuid']}")
-        return {}
+        reason = f"Publication with DOI {doi} already exists: {duplicate_pub[0]['uuid']}"
+        print(reason)
+        return 'invalid', reason
 
     pub_info = {
         "consortia": ["smaht"],
@@ -751,8 +763,9 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     pubmed_metadata = None
 
     if not doi.startswith("10."):
-        print(f"Invalid DOI: {doi}")
-        return {}
+        reason = f"Invalid DOI: {doi}"
+        print(reason)
+        return 'invalid', reason
 
     # Try to fetch from CrossRef (works for most DOIs)
     crossref_response = get_crossref_metadata(doi)
@@ -772,17 +785,31 @@ def fetch_publication_info(connection, info: tuple) -> Dict[str, Any]:
     # see if we can get pubmed id from doi
     pmid = get_pmid_from_doi(doi)
 
+    if not crossref_response and not rxiv_metadata and not pmid:
+        # nothing acknowledged this DOI exists anywhere - don't create/update
+        # a publication record from a DOI that couldn't be found at all
+        reason = f"DOI could not be resolved via CrossRef, bioRxiv/medRxiv, or PubMed: {doi}"
+        print(reason)
+        return 'unresolved', reason
+
     if rxiv_metadata:
         # Merge data, preferring existing pub_info values
         for key, value in rxiv_metadata.items():
             if value and not pub_info[key]:
                 pub_info[key] = value
 
-        # add Rxiv URL to repository URLs - this resolves to either bioRxiv or medRxiv
-        pub_info["repository_urls"].append(f"https://doi.org/{doi}")
         if pmid:
             pub_info["pubmed_id"] = pmid
             pub_info["repository_urls"].append(f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
+
+    doi_prefix = doi.split("/")[0]
+    if doi_prefix in constants.RXIV_PREFIXES or doi_prefix in constants.PREPRINT_JOURNAL_NAMES:
+        # record the DOI landing page for known preprint archives
+        # (bioRxiv/medRxiv, SSRN) - narrower than is_preprint, which
+        # CrossRef also sets True for reports/datasets/dissertations/etc.
+        doi_url = f"https://doi.org/{doi}"
+        if doi_url not in pub_info["repository_urls"]:
+            pub_info["repository_urls"].append(doi_url)
 
     # Fetch PubMed metadata
     pubmed_xml = get_pubmed_metadata(pmid)
@@ -909,13 +936,13 @@ def prepare_pub_metadata(connection, **kwargs):
     problems = []
     id_list = parse_input_ids(id_str)
     for idinfo in id_list:
-        if pub_info := fetch_publication_info(connection, idinfo):
-            if pub_info[0] == 'create':
-                pubs_to_post.append(pub_info[1])
-            elif pub_info[0] == 'update':
-                pubs_to_patch.append(pub_info[1])
-            else:
-                problems.append(idinfo)
+        pub_info = fetch_publication_info(connection, idinfo)
+        if pub_info[0] == 'create':
+            pubs_to_post.append(pub_info[1])
+        elif pub_info[0] == 'update':
+            pubs_to_patch.append(pub_info[1])
+        else:
+            problems.append({"doi": idinfo[1], "accession": idinfo[2], "reason": pub_info[1]})
     check.full_output = {"input": id_str,
                          "parsed_idinfo": id_list,
                          "pubs_to_post": pubs_to_post,
