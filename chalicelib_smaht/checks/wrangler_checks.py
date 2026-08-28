@@ -740,7 +740,7 @@ def fetch_publication_info(connection, info: tuple) -> Tuple[str, Any]:
             key=connection.ff_keys
         )
     ):
-        reason = f"Publication with DOI {doi} already exists: {duplicate_pub['uuid']}"
+        reason = f"Publication with DOI {doi} already exists: {duplicate_pub[0]['uuid']}"
         print(reason)
         return 'invalid', reason
 
