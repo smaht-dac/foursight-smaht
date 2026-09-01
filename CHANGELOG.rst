@@ -7,6 +7,11 @@ foursight-smaht
 Change Log
 ----------
 
+
+0.9.5
+======
+* pull in latest foursight-core 5.10.2 - to fix bug with manual check execution in UI
+
 0.9.4
 ======
 * update python version requirement to >=3.10,<3.13
