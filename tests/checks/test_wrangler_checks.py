@@ -181,7 +181,7 @@ class TestTPCMetadataSync:
 
         assert len(to_patch) == 2  # gcc-1 and gcc-3
         assert len(mismatched) == 1  # gcc-2
-        
+
         # Verify gcc-1 in to_patch with core_size copy
         gcc1_patch = next(
             (p for p in to_patch if p["uuid"] == "gcc-1"),
@@ -189,7 +189,7 @@ class TestTPCMetadataSync:
         )
         assert gcc1_patch is not None
         assert gcc1_patch["patch"] == {"core_size": "5mm"}
-        
+
         # Verify gcc-3 in to_patch with empty patch (matching values)
         gcc3_patch = next(
             (p for p in to_patch if p["uuid"] == "gcc-3"),
@@ -197,7 +197,7 @@ class TestTPCMetadataSync:
         )
         assert gcc3_patch is not None
         assert gcc3_patch["patch"] == {}
-        
+
         # Verify gcc-2 in mismatched_samples
         gcc2_mismatch = mismatched[0]
         assert gcc2_mismatch["uuid"] == "gcc-2"
