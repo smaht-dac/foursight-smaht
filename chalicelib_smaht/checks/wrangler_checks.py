@@ -1077,8 +1077,31 @@ def _get_tpc_sample(external_id, ff_keys):
 
 
 def _build_tpc_field_patch(tpc_sample, target_sample):
-    """Return field-only patch dict (no tags), or None if nothing to transfer."""
+    """Return (patch_dict, mismatch_reason) tuple.
+
+    patch_dict: field-only patch dict (no tags), or None if nothing to transfer.
+    mismatch_reason: string describing core_size mismatch, or None if no mismatch.
+
+    If core_size differs between TPC and target, returns (None, reason) to exclude
+    this sample from patching entirely.
+    """
     patch = {}
+    tpc_core_size = tpc_sample.get("core_size")
+    target_core_size = target_sample.get("core_size")
+
+    # Handle core_size: copy from TPC if GCC lacks it; mismatch = exclude entirely
+    if tpc_core_size and target_core_size:
+        if tpc_core_size != target_core_size:
+            reason = (
+                f"core_size mismatch: TPC={tpc_core_size}, GCC={target_core_size}"
+            )
+            return None, reason
+        # Equal values: no action needed for core_size
+    elif tpc_core_size:
+        # GCC lacks core_size; copy from TPC
+        patch["core_size"] = tpc_core_size
+
+    # Existing fields: preservation_type, description, processing_notes
     if tpc_sample.get("preservation_type") and not target_sample.get("preservation_type"):
         patch["preservation_type"] = tpc_sample["preservation_type"]
     for field in ("description", "processing_notes"):
@@ -1088,7 +1111,39 @@ def _build_tpc_field_patch(tpc_sample, target_sample):
             patch[field] = f"GCC: {target_val}; TPC: {tpc_val}"
         elif tpc_val:
             patch[field] = f"TPC: {tpc_val}"
-    return patch or None
+
+    return (patch or None), None
+
+
+def _process_tpc_sync_candidates(candidates, ff_keys):
+    """Process candidate samples and return (to_patch, mismatched_samples) lists.
+
+    Factored out for easier testing.
+    """
+    to_patch = []
+    mismatched_samples = []
+    for sample in candidates:
+        external_id = sample.get("external_id")
+        if not external_id:
+            continue
+        tpc_sample = _get_tpc_sample(external_id, ff_keys)
+        if not tpc_sample:
+            continue
+        field_patch, mismatch_reason = _build_tpc_field_patch(tpc_sample, sample)
+        if mismatch_reason:
+            # Exclude this sample entirely from to_patch due to core_size mismatch
+            mismatched_samples.append({
+                "uuid": sample["uuid"],
+                "external_id": external_id,
+                "reason": mismatch_reason,
+            })
+        else:
+            to_patch.append({
+                "uuid": sample["uuid"],
+                "external_id": external_id,
+                "patch": field_patch or {},
+            })
+    return to_patch, mismatched_samples
 
 
 @check_function(action="patch_tpc_tissue_sample_metadata", samples_per_run=1000)
@@ -1096,7 +1151,12 @@ def sync_tpc_tissue_sample_metadata(connection, **kwargs):
     """Find non-TPC tissue samples that need metadata synced from their matching TPC
     sample (matched by external_id) and have not yet been processed (no
     tpc_metadata_synced tag).  Runs up to samples_per_run lookups per invocation to
-    stay within Lambda timeout."""
+    stay within Lambda timeout.
+
+    Copies core_size from TPC to GCC when GCC lacks it; matching values are fine.
+    When both values exist and differ, emits one warning per mismatching sample in
+    check output and excludes that sample entirely from to_patch.
+    """
     check = CheckResult(connection, "sync_tpc_tissue_sample_metadata")
     check.action = "patch_tpc_tissue_sample_metadata"
     check.allow_action = False
@@ -1113,39 +1173,50 @@ def sync_tpc_tissue_sample_metadata(connection, **kwargs):
     )
     candidates = ff_utils.search_metadata(query, key=connection.ff_keys)
 
-    to_patch = []
-    for sample in candidates:
-        external_id = sample.get("external_id")
-        if not external_id:
-            continue
-        tpc_sample = _get_tpc_sample(external_id, connection.ff_keys)
-        if not tpc_sample:
-            continue
-        field_patch = _build_tpc_field_patch(tpc_sample, sample)
-        to_patch.append({
-            "uuid": sample["uuid"],
-            "external_id": external_id,
-            "patch": field_patch or {},
-        })
+    to_patch, mismatched_samples = _process_tpc_sync_candidates(
+        candidates, connection.ff_keys
+    )
 
-    if not to_patch:
+    if not to_patch and not mismatched_samples:
         check.status = constants.CHECK_PASS
         check.summary = "All non-TPC tissue samples have been synced with TPC metadata"
         return check
 
     check.status = constants.CHECK_WARN
-    check.allow_action = True
-    check.summary = f"{len(to_patch)} non-TPC tissue sample(s) need TPC metadata synced"
-    check.brief_output = f"{len(to_patch)} samples to patch (batch size: {samples_per_run})"
-    check.full_output = {"to_patch": to_patch}
+    check.allow_action = bool(to_patch)
+
+    summary_parts = []
+    if to_patch:
+        summary_parts.append(f"{len(to_patch)} sample(s) to sync")
+    if mismatched_samples:
+        summary_parts.append(f"{len(mismatched_samples)} sample(s) with core_size mismatch")
+    check.summary = "; ".join(summary_parts)
+
+    brief_parts = []
+    if to_patch:
+        brief_parts.append(f"{len(to_patch)} samples to patch")
+    if mismatched_samples:
+        brief_parts.append(
+            f"{len(mismatched_samples)} excluded due to core_size mismatch"
+        )
+    check.brief_output = "; ".join(brief_parts) + f" (batch size: {samples_per_run})"
+
+    check.full_output = {
+        "to_patch": to_patch,
+        "mismatched_samples": mismatched_samples,
+    }
     return check
 
 
 @action_function()
 def patch_tpc_tissue_sample_metadata(connection, **kwargs):
-    """Apply TPC metadata (preservation_type, description, processing_notes) to
-    non-TPC tissue samples identified by sync_tpc_tissue_sample_metadata, and mark
-    each with the tpc_metadata_synced tag."""
+    """Apply TPC metadata (core_size, preservation_type, description, processing_notes)
+    to non-TPC tissue samples identified by sync_tpc_tissue_sample_metadata, and mark
+    each with the tpc_metadata_synced tag.
+
+    Samples with core_size mismatches are excluded from patching and reported in the
+    check output warnings.
+    """
     action = ActionResult(connection, "patch_tpc_tissue_sample_metadata")
     action_logs = {"patch_success": [], "patch_failure": []}
 
