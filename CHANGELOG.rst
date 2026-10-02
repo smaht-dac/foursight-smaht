@@ -8,6 +8,15 @@ Change Log
 ----------
 
 
+0.9.6
+======
+* Extend TPC tissue sample metadata sync (sync_tpc_tissue_sample_metadata check) to handle core_size field:
+  - Copy core_size from TPC sample to GCC sample when GCC lacks the field
+  - When both samples have core_size and values match, no action needed
+  - When both samples have core_size and values differ, emit warning in check output and exclude sample from patching entirely
+  - Add comprehensive test coverage for core_size logic and existing field behavior preservation
+
+
 0.9.5
 ======
 * pull in latest foursight-core 5.10.2 - to fix bug with manual check execution in UI
