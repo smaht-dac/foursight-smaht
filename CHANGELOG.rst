@@ -7,6 +7,10 @@ foursight-smaht
 Change Log
 ----------
 
+0.9.6
+======
+* Update lock file to use updated version of foursight-core (^5.10.3) and awscli (^1.46.1) to fix security vulnerabilities.
+
 
 0.9.6
 ======
