@@ -7,6 +7,16 @@ foursight-smaht
 Change Log
 ----------
 
+0.9.8
+======
+* Publication metadata (prepare_pub_metadata / update_pub_metadata) fixes:
+  - Drop Crossref JATS "Abstract" / "Graphical Abstract" labels and figure elements and bioRxiv label artifacts from abstracts (prose is preserved); join all PubMed AbstractText sections
+  - Skip the PubMed fetch when no PMID is found
+  - Keep existing previous_repository_urls and move removed repository_urls into it; a DOI change with no new URLs now clears repository_urls and pubmed_id explicitly
+  - A source lacking a value no longer produces a clear; unchanged publications are reported as such instead of queuing an empty patch
+  - The update action re-fetches each publication and skips patches (and creates for DOIs that now exist) if the item changed since the check
+
+
 0.9.7
 ======
 * Update lock file to use updated version of foursight-core (^5.10.5) and awscli (^1.46.1) to fix security vulnerabilities.
