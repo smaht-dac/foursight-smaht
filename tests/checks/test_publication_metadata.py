@@ -62,6 +62,8 @@ class TestRxivAbstract:
         f"{BODY} Graphical Abstract Open in new tab Download powerpoint",
         f"Abstract: {BODY}",
         f"Abstract\n{BODY}",
+        f"Abstract - {BODY}",
+        f"Abstract — {BODY}",
         f"  {BODY}  ",
     ])
     def test_labels_removed(self, raw):
@@ -69,6 +71,8 @@ class TestRxivAbstract:
 
     @pytest.mark.parametrize("prose", [
         "Abstract ideas are hard to measure.",
+        "Abstract-based models capture structure.",
+        "Abstract–concrete contrasts were tested.",
         "We show the graphical abstract of the pipeline is stable.",
         "Results. Graphical Abstract tools improve outcomes in many settings.",
     ])

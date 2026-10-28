@@ -334,7 +334,8 @@ _JATS_BLOCK_TAG_RE = re.compile(
     r"</?jats:(?:title|p|sec|list|list-item|caption|label)\b[^>]*>", re.IGNORECASE
 )
 _LEADING_ABSTRACT_LABEL_RE = re.compile(
-    r"^\s*(?:(?:graphical|visual)\s+)?abstract[ \t]*(?:[:.—–-]|\r?\n|$)\s*",
+    r"^\s*(?:(?:graphical|visual)\s+)?abstract"
+    r"(?:[ \t]*[:.—]|[ \t]+[–-](?=\s)|[ \t]*\r?\n|[ \t]*$)\s*",
     re.IGNORECASE,
 )
 _TRAILING_PRESENTATION_RE = re.compile(
