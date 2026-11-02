@@ -1,7 +1,10 @@
 import json
 from os import name
+import os
 import time
 import random
+import threading
+from collections import defaultdict
 from unittest import result
 from datetime import datetime
 import requests
@@ -779,10 +782,46 @@ def publication_values_equal(a: Any, b: Any) -> bool:
 
 # fields a PATCH may deliberately empty; a source that merely lacks a value
 # never clears anything, only a DOI change makes the old values stale
-PUBLICATION_CLEARABLE_FIELDS = ("pubmed_id", "repository_urls")
+PUBLICATION_CLEARABLE_FIELDS = ("pubmed_id", "repository_urls", "previous_dois")
 # keys of an update payload that are not Publication properties
 PATCH_UUID_KEY = "uuid"
 PATCH_BASELINE_KEY = "_baseline"
+PATCH_PREVIOUS_DOIS_KEY = "previous_dois"
+PREVIOUS_DOIS_FEATURE_FLAG = "FOURSIGHT_ENABLE_PREVIOUS_DOIS"
+_PUBLICATION_UPDATE_LOCKS = defaultdict(threading.Lock)
+
+
+def previous_dois_enabled() -> bool:
+    """Return whether the deployed portal supports restricted previous_dois writes."""
+    return os.environ.get(PREVIOUS_DOIS_FEATURE_FLAG, "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
+
+def build_previous_dois_transition(
+    old_doi: Optional[str], new_doi: Optional[str], existing_history: Optional[List[Any]]
+) -> Optional[List[Any]]:
+    """Build first-seen DOI history for one current-DOI transition.
+
+    A same-DOI metadata refresh returns ``None`` so it cannot change history.
+    On a transition, existing history is preserved in first-seen order, the
+    new current DOI is removed, and the old current DOI is appended once.
+    """
+    if old_doi == new_doi:
+        return None
+    if existing_history is None:
+        existing_history = []
+    if not isinstance(existing_history, list):
+        raise ValueError("Publication previous_dois must be a list or null")
+
+    history = []
+    for doi in existing_history:
+        if doi == new_doi or doi in history:
+            continue
+        history.append(doi)
+    if old_doi not in (None, "") and old_doi != new_doi and old_doi not in history:
+        history.append(old_doi)
+    return history
 
 
 def _is_empty_value(value: Any) -> bool:
@@ -794,6 +833,15 @@ def _same_publication_value(a: Any, b: Any) -> bool:
     if _is_empty_value(a) and _is_empty_value(b):
         return True
     return publication_values_equal(a, b)
+
+
+def _same_patch_value(key: str, a: Any, b: Any) -> bool:
+    """Compare patch dependencies, retaining canonical order for DOI history."""
+    if key == PATCH_PREVIOUS_DOIS_KEY:
+        if _is_empty_value(a) and _is_empty_value(b):
+            return True
+        return a == b
+    return _same_publication_value(a, b)
 
 
 def _dedupe(items: List[Any]) -> List[Any]:
@@ -821,7 +869,7 @@ def build_publication_patch(curr_pub: Dict[str, Any], pub_info: Dict[str, Any]) 
     - When repository_urls changes, URLs no longer current are appended to the
       existing previous_repository_urls.
     """
-    doi_changed = bool(curr_pub.get("doi")) and curr_pub["doi"] != pub_info["doi"]
+    doi_changed = curr_pub.get("doi") != pub_info["doi"]
     update_fields = {}
     for key, new in pub_info.items():
         curr = curr_pub.get(key)
@@ -836,6 +884,13 @@ def build_publication_patch(curr_pub: Dict[str, Any], pub_info: Dict[str, Any]) 
         elif not _same_publication_value(curr, new):
             update_fields[key] = new
 
+    if doi_changed and previous_dois_enabled():
+        update_fields[PATCH_PREVIOUS_DOIS_KEY] = build_previous_dois_transition(
+            curr_pub.get("doi"),
+            pub_info["doi"],
+            curr_pub.get(PATCH_PREVIOUS_DOIS_KEY),
+        )
+
     if "repository_urls" in update_fields:
         new_urls = update_fields["repository_urls"] or []
         removed = [u for u in curr_pub.get("repository_urls") or [] if u not in new_urls]
@@ -847,11 +902,122 @@ def build_publication_patch(curr_pub: Dict[str, Any], pub_info: Dict[str, Any]) 
     if not update_fields:
         return {}
     baseline_keys = set(update_fields)
+    if PATCH_PREVIOUS_DOIS_KEY in update_fields:
+        baseline_keys |= {"doi", PATCH_PREVIOUS_DOIS_KEY}
     if baseline_keys & {"repository_urls", "previous_repository_urls"}:
         baseline_keys |= {"repository_urls", "previous_repository_urls"}
     update_fields[PATCH_UUID_KEY] = curr_pub["uuid"]
     update_fields[PATCH_BASELINE_KEY] = {k: curr_pub.get(k) for k in sorted(baseline_keys)}
     return update_fields
+
+
+def _portal_error_status(error: Exception) -> Optional[int]:
+    """Extract an HTTP status from common portal/client exception shapes."""
+    for candidate in (error, getattr(error, "response", None)):
+        status = getattr(candidate, "status_code", None)
+        if status is not None:
+            try:
+                return int(status)
+            except (TypeError, ValueError):
+                pass
+    match = re.search(r"\b(403|409)\b", str(error))
+    return int(match.group(1)) if match else None
+
+
+def _portal_retry_detail(error: Exception) -> str:
+    status = _portal_error_status(error)
+    if status == 403:
+        return "Portal authorization failed (HTTP 403); verify restricted_fields access and re-run the check"
+    if status == 409:
+        return "Portal conflict (HTTP 409); re-fetch the publication and re-run the check"
+    return f"Portal request failed; re-run the check: {error}"
+
+
+def _apply_publication_patch(connection, patch_data: Dict[str, Any]) -> Tuple[bool, str]:
+    """Apply one guarded patch, refusing stale or disabled-history writes.
+
+    The lock serializes same-publication actions within this process. The
+    portal PATCH API has no conditional version argument, so GET-then-PATCH is
+    not atomic; portal conflicts remain failures requiring a fresh check.
+    """
+    uuid = patch_data.get(PATCH_UUID_KEY)
+    if not uuid:
+        return False, f"Skipped patch — no UUID found in patch data: {patch_data}"
+
+    fields = {
+        key: value
+        for key, value in patch_data.items()
+        if key not in (PATCH_UUID_KEY, PATCH_BASELINE_KEY)
+    }
+    doi = fields.get("doi", uuid)
+    if PATCH_PREVIOUS_DOIS_KEY in fields and not previous_dois_enabled():
+        return (
+            False,
+            f"Skipped patch — previous_dois rollout gate is disabled for publication {uuid}; "
+            f"re-run the check — DOI: {doi}",
+        )
+
+    with _PUBLICATION_UPDATE_LOCKS[uuid]:
+        try:
+            current = ff_utils.get_metadata(uuid, key=connection.ff_keys)
+        except Exception as error:
+            return (
+                False,
+                f"Skipped patch — could not re-fetch publication {uuid} to confirm "
+                f"it is unchanged since the check; {_portal_retry_detail(error)} — DOI: {doi}",
+            )
+        if not current:
+            return (
+                False,
+                f"Skipped patch — could not re-fetch publication {uuid} to confirm "
+                f"it is unchanged since the check; re-run the check — DOI: {doi}",
+            )
+        if all(_same_patch_value(key, current.get(key), value) for key, value in fields.items()):
+            return True, f"Publication {uuid} already up to date — DOI: {doi}"
+
+        baseline = patch_data.get(PATCH_BASELINE_KEY)
+        if baseline is None:
+            return (
+                False,
+                f"Skipped patch — no check-time baseline stored for publication {uuid}; "
+                f"re-run the check — DOI: {doi}",
+            )
+        changed = [
+            key for key, value in baseline.items()
+            if not _same_patch_value(key, current.get(key), value)
+        ]
+        if changed:
+            return (
+                False,
+                f"Skipped patch — publication {uuid} changed since the check "
+                f"({', '.join(changed)}); re-run the check — DOI: {doi}",
+            )
+
+        # Empty values only reach a PATCH on purpose (see build_publication_patch):
+        # [] is sent as-is, a scalar is removed with delete_fields.
+        patch_body = {}
+        delete_fields = []
+        for key, value in fields.items():
+            if not _is_empty_value(value):
+                patch_body[key] = value
+            elif key in PUBLICATION_CLEARABLE_FIELDS:
+                if isinstance(value, list):
+                    patch_body[key] = value
+                else:
+                    delete_fields.append(key)
+        add_on = f"delete_fields={','.join(delete_fields)}" if delete_fields else ""
+
+        try:
+            ff_utils.patch_metadata(
+                patch_body, obj_id=uuid, key=connection.ff_keys, add_on=add_on
+            )
+        except Exception as error:
+            return (
+                False,
+                f"Failed to update publication {uuid} — DOI: {doi} | "
+                f"{_portal_retry_detail(error)}",
+            )
+    return True, f"Updated publication {uuid} — DOI: {doi}"
 
 
 def fetch_publication_info(connection, info: tuple) -> Tuple[str, Any]:
@@ -1138,7 +1304,13 @@ def update_pub_metadata(connection, **kwargs):
     for pub_data in pubs_to_post:
         doi = pub_data.get("doi", "unknown")
         # Strip None/empty values so the server validator stays happy
-        clean_data = {k: v for k, v in pub_data.items() if v is not None and v != []}
+        clean_data = {
+            key: value
+            for key, value in pub_data.items()
+            if value is not None
+            and value != []
+            and (key != PATCH_PREVIOUS_DOIS_KEY or previous_dois_enabled())
+        }
         try:
             # the DOI may have been added since the check
             if existing := ff_utils.search_metadata(
@@ -1155,86 +1327,16 @@ def update_pub_metadata(connection, **kwargs):
             )
         except Exception as e:
             action_logs["post_failure"].append(
-                f"Failed to create publication — DOI: {doi} | Error: {e}"
+                f"Failed to create publication — DOI: {doi} | {_portal_retry_detail(e)}"
             )
 
     # ------------------------------------------------------------------
     # PATCH – update existing Publication items
     # ------------------------------------------------------------------
     for patch_data in pubs_to_patch:
-        uuid = patch_data.get("uuid")
-        if not uuid:
-            action_logs["patch_failure"].append(
-                f"Skipped patch — no UUID found in patch data: {patch_data}"
-            )
-            continue
-
-        # uuid addresses the item and the baseline is check-time bookkeeping;
-        # neither belongs in the body
-        fields = {
-            k: v for k, v in patch_data.items()
-            if k not in (PATCH_UUID_KEY, PATCH_BASELINE_KEY)
-        }
-        doi = fields.get("doi", uuid)
-
-        # The stored patch was computed from a snapshot taken at check time;
-        # never write it over data that has changed since.
-        try:
-            current = ff_utils.get_metadata(uuid, key=connection.ff_keys)
-        except Exception as e:
-            current = None
-            print(f"Error re-fetching publication {uuid}: {e}")
-        if not current:
-            action_logs["patch_failure"].append(
-                f"Skipped patch — could not re-fetch publication {uuid} to confirm "
-                f"it is unchanged since the check; re-run the check — DOI: {doi}"
-            )
-            continue
-        if all(_same_publication_value(current.get(k), v) for k, v in fields.items()):
-            action_logs["patch_success"].append(
-                f"Publication {uuid} already up to date — DOI: {doi}"
-            )
-            continue
-        baseline = patch_data.get(PATCH_BASELINE_KEY)
-        if baseline is None:
-            action_logs["patch_failure"].append(
-                f"Skipped patch — no check-time baseline stored for publication {uuid}; "
-                f"re-run the check — DOI: {doi}"
-            )
-            continue
-        changed = [k for k, v in baseline.items() if not _same_publication_value(current.get(k), v)]
-        if changed:
-            action_logs["patch_failure"].append(
-                f"Skipped patch — publication {uuid} changed since the check "
-                f"({', '.join(changed)}); re-run the check — DOI: {doi}"
-            )
-            continue
-
-        # Empty values only reach a PATCH on purpose (see build_publication_patch):
-        # [] is sent as-is, a scalar is removed with delete_fields.
-        patch_body = {}
-        delete_fields = []
-        for k, v in fields.items():
-            if not _is_empty_value(v):
-                patch_body[k] = v
-            elif k in PUBLICATION_CLEARABLE_FIELDS:
-                if isinstance(v, list):
-                    patch_body[k] = v
-                else:
-                    delete_fields.append(k)
-        add_on = f"delete_fields={','.join(delete_fields)}" if delete_fields else ""
-
-        try:
-            ff_utils.patch_metadata(
-                patch_body, obj_id=uuid, key=connection.ff_keys, add_on=add_on
-            )
-            action_logs["patch_success"].append(
-                f"Updated publication {uuid} — DOI: {doi}"
-            )
-        except Exception as e:
-            action_logs["patch_failure"].append(
-                f"Failed to update publication {uuid} — DOI: {doi} | Error: {e}"
-            )
+        succeeded, message = _apply_publication_patch(connection, patch_data)
+        log_key = "patch_success" if succeeded else "patch_failure"
+        action_logs[log_key].append(message)
 
     # ------------------------------------------------------------------
     # Determine final action status
