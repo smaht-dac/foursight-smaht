@@ -15,6 +15,7 @@ Change Log
   - Keep existing previous_repository_urls and move removed repository_urls into it; a DOI change with no new URLs now clears repository_urls and pubmed_id explicitly
   - A source lacking a value no longer produces a clear; unchanged publications are reported as such instead of queuing an empty patch
   - The update action re-fetches each publication and skips patches (and creates for DOIs that now exist) if the item changed since the check
+  - A DOI change records the old DOI in Publication.previous_dois, only when the ``FOURSIGHT_ENABLE_PREVIOUS_DOIS`` env var is set (enable once the portal schema supporting it is deployed); otherwise previous_dois is never written
 
 
 0.9.7
