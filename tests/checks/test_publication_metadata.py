@@ -205,7 +205,7 @@ class TestFetchPublicationInfo:
 
 
 # ---------------------------------------------------------------------------
-# previous_dois transition and rollout gate
+# previous_dois transition
 # ---------------------------------------------------------------------------
 
 class TestPreviousDoiHistory:
@@ -235,15 +235,7 @@ class TestPreviousDoiHistory:
         with pytest.raises(ValueError):
             wc.build_previous_dois_transition(DOI, NEW_DOI, "not-a-list")
 
-    def test_gate_off_suppresses_history_and_dependency(self, monkeypatch):
-        monkeypatch.delenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, raising=False)
-        patch = wc.build_publication_patch(_curr(), {"doi": NEW_DOI})
-        assert patch["doi"] == NEW_DOI
-        assert wc.PATCH_PREVIOUS_DOIS_KEY not in patch
-        assert patch[wc.PATCH_BASELINE_KEY] == {"doi": DOI}
-
-    def test_gate_on_emits_history_and_baseline_dependencies(self, monkeypatch):
-        monkeypatch.setenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, "true")
+    def test_doi_change_always_emits_history_and_baseline_dependencies(self):
         patch = wc.build_publication_patch(
             _curr(previous_dois=["10.1000/old", DOI]), {"doi": NEW_DOI}
         )
@@ -253,8 +245,7 @@ class TestPreviousDoiHistory:
             "previous_dois": ["10.1000/old", DOI],
         }
 
-    def test_metadata_only_update_does_not_emit_history(self, monkeypatch):
-        monkeypatch.setenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, "true")
+    def test_metadata_only_update_does_not_emit_history(self):
         assert wc.build_publication_patch(
             _curr(previous_dois=["10.1000/old"]), {"doi": DOI, "title": "T"}
         ) == {}
@@ -383,20 +374,7 @@ class TestUpdateAction:
         assert "abstract" not in args[0] and "authors" not in args[0]
         assert kwargs["add_on"] == ""
 
-    def test_gate_off_refuses_queued_history_patch(self, monkeypatch):
-        monkeypatch.delenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, raising=False)
-        entry = {
-            "uuid": "u-1",
-            "doi": NEW_DOI,
-            "previous_dois": [DOI],
-            "_baseline": {"doi": DOI, "previous_dois": None},
-        }
-        result, patch_md, _, _ = _run_action(patches=[entry], current=_curr())
-        patch_md.assert_not_called()
-        assert "rollout gate is disabled" in result.output["patch_failure"][0]
-
-    def test_gate_on_exact_patch_excludes_uuid_and_baseline(self, monkeypatch):
-        monkeypatch.setenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, "1")
+    def test_history_patch_excludes_uuid_and_baseline(self):
         entry = {
             "uuid": "u-1",
             "doi": NEW_DOI,
@@ -411,8 +389,7 @@ class TestUpdateAction:
         assert "uuid" not in patch_md.call_args[0][0]
         assert "_baseline" not in patch_md.call_args[0][0]
 
-    def test_history_stale_check_is_not_written(self, monkeypatch):
-        monkeypatch.setenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, "true")
+    def test_history_stale_check_is_not_written(self):
         entry = {
             "uuid": "u-1",
             "doi": NEW_DOI,
@@ -425,8 +402,7 @@ class TestUpdateAction:
         patch_md.assert_not_called()
         assert "previous_dois" in result.output["patch_failure"][0]
 
-    def test_concurrent_doi_update_is_refused_as_stale(self, monkeypatch):
-        monkeypatch.setenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, "true")
+    def test_concurrent_doi_update_is_refused_as_stale(self):
         entry = {
             "uuid": "u-1",
             "doi": NEW_DOI,
@@ -439,8 +415,7 @@ class TestUpdateAction:
         patch_md.assert_not_called()
         assert "changed since the check" in result.output["patch_failure"][0]
 
-    def test_conflict_and_authorization_failures_require_retry(self, monkeypatch):
-        monkeypatch.setenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, "true")
+    def test_conflict_and_authorization_failures_require_retry(self):
         entry = {
             "uuid": "u-1",
             "doi": NEW_DOI,
@@ -455,8 +430,7 @@ class TestUpdateAction:
             assert text in result.output["patch_failure"][0]
             assert "re-run" in result.output["patch_failure"][0]
 
-    def test_retry_after_applied_timeout_is_idempotent(self, monkeypatch):
-        monkeypatch.setenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, "true")
+    def test_retry_after_applied_timeout_is_idempotent(self):
         entry = {
             "uuid": "u-1",
             "doi": NEW_DOI,
@@ -474,8 +448,7 @@ class TestUpdateAction:
         patch_md.assert_not_called()
         assert "already up to date" in second.output["patch_success"][0]
 
-    def test_post_strips_empty_values_and_gated_history_when_disabled(self, monkeypatch):
-        monkeypatch.delenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, raising=False)
+    def test_post_strips_empty_values_and_keeps_history(self):
         post = {
             "doi": DOI,
             "pubmed_id": None,
@@ -484,14 +457,15 @@ class TestUpdateAction:
             "title": "T",
         }
         _, _, post_md, _ = _run_action(posts=[post])
-        assert post_md.call_args[0][0] == {"doi": DOI, "title": "T"}
+        assert post_md.call_args[0][0] == {
+            "doi": DOI, "previous_dois": ["10.1000/old"], "title": "T"
+        }
 
     def test_post_skipped_when_doi_now_exists(self):
         _, _, post_md, _ = _run_action(posts=[{"doi": DOI}], search=[{"uuid": "u-9"}])
         post_md.assert_not_called()
 
-    def test_historical_doi_reuse_is_not_preflight_duplicate(self, monkeypatch):
-        monkeypatch.setenv(wc.PREVIOUS_DOIS_FEATURE_FLAG, "true")
+    def test_historical_doi_reuse_is_not_preflight_duplicate(self):
         post = {"doi": DOI, "previous_dois": ["10.1000/old"]}
         _, _, post_md, _ = _run_action(posts=[post], search=[])
         post_md.assert_called_once()

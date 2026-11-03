@@ -1,6 +1,5 @@
 import json
 from os import name
-import os
 import time
 import random
 import threading
@@ -787,15 +786,7 @@ PUBLICATION_CLEARABLE_FIELDS = ("pubmed_id", "repository_urls", "previous_dois")
 PATCH_UUID_KEY = "uuid"
 PATCH_BASELINE_KEY = "_baseline"
 PATCH_PREVIOUS_DOIS_KEY = "previous_dois"
-PREVIOUS_DOIS_FEATURE_FLAG = "FOURSIGHT_ENABLE_PREVIOUS_DOIS"
 _PUBLICATION_UPDATE_LOCKS = defaultdict(threading.Lock)
-
-
-def previous_dois_enabled() -> bool:
-    """Return whether the deployed portal supports restricted previous_dois writes."""
-    return os.environ.get(PREVIOUS_DOIS_FEATURE_FLAG, "").strip().lower() in {
-        "1", "true", "yes", "on"
-    }
 
 
 def build_previous_dois_transition(
@@ -884,7 +875,7 @@ def build_publication_patch(curr_pub: Dict[str, Any], pub_info: Dict[str, Any]) 
         elif not _same_publication_value(curr, new):
             update_fields[key] = new
 
-    if doi_changed and previous_dois_enabled():
+    if doi_changed:
         update_fields[PATCH_PREVIOUS_DOIS_KEY] = build_previous_dois_transition(
             curr_pub.get("doi"),
             pub_info["doi"],
@@ -934,7 +925,7 @@ def _portal_retry_detail(error: Exception) -> str:
 
 
 def _apply_publication_patch(connection, patch_data: Dict[str, Any]) -> Tuple[bool, str]:
-    """Apply one guarded patch, refusing stale or disabled-history writes.
+    """Apply one guarded patch, refusing stale writes.
 
     The lock serializes same-publication actions within this process. The
     portal PATCH API has no conditional version argument, so GET-then-PATCH is
@@ -950,12 +941,6 @@ def _apply_publication_patch(connection, patch_data: Dict[str, Any]) -> Tuple[bo
         if key not in (PATCH_UUID_KEY, PATCH_BASELINE_KEY)
     }
     doi = fields.get("doi", uuid)
-    if PATCH_PREVIOUS_DOIS_KEY in fields and not previous_dois_enabled():
-        return (
-            False,
-            f"Skipped patch — previous_dois rollout gate is disabled for publication {uuid}; "
-            f"re-run the check — DOI: {doi}",
-        )
 
     with _PUBLICATION_UPDATE_LOCKS[uuid]:
         try:
@@ -1309,7 +1294,6 @@ def update_pub_metadata(connection, **kwargs):
             for key, value in pub_data.items()
             if value is not None
             and value != []
-            and (key != PATCH_PREVIOUS_DOIS_KEY or previous_dois_enabled())
         }
         try:
             # the DOI may have been added since the check
