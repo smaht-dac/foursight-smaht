@@ -7,6 +7,15 @@ foursight-smaht
 Change Log
 ----------
 
+0.9.9
+======
+* Add ``check_suggested_enum_values`` audit check (ported from Fourfront foursight, without the unused action):
+  reports values of ``suggested_enum`` fields that are not in the suggested list, per concrete item type.
+  Unlike the Fourfront version, it finds new values in array fields that also contain suggested values,
+  skips abstract types to avoid double-reporting, and supports nested fields at any depth.
+  Scheduled weekly (``monday_checks``).
+
+
 0.9.8
 ======
 * Publication metadata (prepare_pub_metadata / update_pub_metadata) fixes:
