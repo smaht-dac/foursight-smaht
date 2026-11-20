@@ -1,3 +1,8 @@
+import random
+import time
+from collections import Counter
+from urllib.parse import quote_plus
+
 from dcicutils import ff_utils
 
 # from foursight_core.checks.helpers import wrangler_utils
@@ -246,4 +251,107 @@ def check_tissue_sample_properties(connection, **kwargs):
     else:
         check.status = "PASS"
         check.summary = "No tissue samples with inconsistent metadata"
+    return check
+
+
+# use a random number to stagger checks
+random_wait = 20
+
+
+def _find_suggested_enum_fields(properties, parent=""):
+    """Find all fields with a suggested_enum in a schema's properties.
+
+    Recurses into sub-objects and arrays of sub-objects, returning a list of
+    (dotted_field_name, allowed_values) tuples, where allowed_values is a new
+    set of the suggested_enum values plus any ignored_enum values. Calculated
+    properties are skipped. The input properties are not modified.
+    """
+    fields = []
+    for name, props in properties.items():
+        if not isinstance(props, dict) or props.get("calculatedProperty"):
+            continue
+        field_name = f"{parent}.{name}" if parent else name
+        items = props.get("items") if isinstance(props.get("items"), dict) else {}
+        if props.get("type") == "object" and "properties" in props:
+            fields.extend(_find_suggested_enum_fields(props["properties"], field_name))
+            continue
+        if items.get("type") == "object" and "properties" in items:
+            fields.extend(_find_suggested_enum_fields(items["properties"], field_name))
+            continue
+        for source in (props, items):
+            if "suggested_enum" in source:
+                allowed = set(source["suggested_enum"]) | set(source.get("ignored_enum", []))
+                fields.append((field_name, allowed))
+                break
+    return fields
+
+
+def _get_values_at_path(item, dotted_path):
+    """Return all non-empty values at a dotted path in an item, flattening lists
+    at any level.
+    """
+    current = [item]
+    for part in dotted_path.split("."):
+        next_level = []
+        for obj in current:
+            if not isinstance(obj, dict):
+                continue
+            value = obj.get(part)
+            if isinstance(value, list):
+                next_level.extend(value)
+            elif value is not None:
+                next_level.append(value)
+        current = next_level
+    return [value for value in current if value not in (None, "")]
+
+
+@check_function()
+def check_suggested_enum_values(connection, **kwargs):
+    """Find values of suggested_enum fields that are not in the suggested list.
+
+    Fields tagged with suggested_enum in the schemas accept values not in the
+    list. For each such field on each concrete item type (abstract types are
+    skipped to avoid reporting the same items under parent and child types),
+    search for items with any value in the field, and count the values that
+    are not in the suggested_enum (or ignored_enum) list.
+
+    Deleted items are not considered, as they are excluded from default searches.
+    """
+    check = CheckResult(connection, "check_suggested_enum_values")
+    wait = round(random.uniform(0.1, random_wait), 1)
+    time.sleep(wait)
+
+    schemas = ff_utils.get_metadata("/profiles/", key=connection.ff_keys)
+    outputs = []
+    for item_type, schema in sorted(schemas.items()):
+        if schema.get("isAbstract"):
+            continue
+        for field_name, allowed in _find_suggested_enum_fields(schema.get("properties", {})):
+            field = quote_plus(field_name)
+            query = f"search/?type={item_type}&{field}!=No+value&field={field}"
+            results = ff_utils.search_metadata(query, key=connection.ff_keys)
+            new_values = Counter(
+                value
+                for result in results
+                for value in _get_values_at_path(result, field_name)
+                if value not in allowed
+            )
+            if new_values:
+                outputs.append(
+                    {
+                        "item_type": item_type,
+                        "field": field_name,
+                        "new_values": dict(new_values),
+                    }
+                )
+
+    if outputs:
+        check.status = constants.CHECK_WARN
+        check.summary = check.description = "Suggested enum fields have new values"
+        check.brief_output = [f"{out['item_type']}: {out['field']}" for out in outputs]
+    else:
+        check.status = constants.CHECK_PASS
+        check.summary = check.description = "No new values for suggested enum fields"
+        check.brief_output = []
+    check.full_output = outputs
     return check

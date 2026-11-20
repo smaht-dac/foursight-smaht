@@ -566,6 +566,23 @@
             "<env-name>"
         ]
     },
+    "check_suggested_enum_values": {
+        "title": "Check fields with suggested enum",
+        "group": "Audit Checks",
+        "schedule": {
+            "monday_checks": {
+                "<env-name>": {
+                    "kwargs": {
+                        "primary": true
+                    },
+                    "dependencies": []
+                }
+            }
+        },
+        "display": [
+            "<env-name>"
+        ]
+    },
     "sync_tpc_tissue_sample_metadata": {
         "title": "Sync TPC metadata to non-TPC tissue samples",
         "group": "Audit Checks",
